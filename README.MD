@@ -102,7 +102,7 @@ The generated ``AccessToken`` is valid for 25 minutes and the ``RefreshToken`` f
 
 ```python
 	# Authenticate yourself using the Space and Time SDK.
-	authenticate_token_data = SpaceAndTimeInit.authenticate()
+	authenticate_token_data = SpaceAndTimeInit.authenticate_user()
 
 	authenticate_token_response = authenticate_token_data["response"]
 	authenticate_token_error = authenticate_token_data["error"]
