@@ -1,0 +1,10 @@
+// Sample Datalog file for biscuits
+
+sxt:capability("ddl_create",    "eth.testtable");
+sxt:capability("ddl_alter",     "eth.testtable");
+sxt:capability("ddl_drop",      "eth.testtable");
+sxt:capability("dml_insert",    "eth.testtable");
+sxt:capability("dml_update",    "eth.testtable");
+sxt:capability("dml_delete",    "eth.testtable");
+sxt:capability("dml_merge",     "eth.testtable");
+sxt:capability("dql_select",    "eth.testtable");
