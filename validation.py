@@ -17,19 +17,13 @@ def validate_boolean(input_bool):
         raise TypeError("Expected boolean, but got {}".format(type(input_bool).__name__))
 
 # Checking if the given string is Base64 URL Safe Encoded or not.
-def is_base64(s):
-    try:
-        # Replace '-' with '+' and '_' with '/' to convert URL-safe base64 to standard base64
-        s = s.replace('-', '+').replace('_', '/')
-        # Pad the string with '=' characters
-        s += '=' * (-len(s) % 4)
 
-        # Attempt to decrypt using a dummy key and IV
-        cipher = AES.new(b'A' * 32, AES.MODE_CBC, iv=b'B' * 16)
-        cipher.decrypt(base64.b64decode(s))
-        return True
-    except (binascii.Error, ValueError) as error:
-        raise binascii.Error("The Input String is not URL-safe base64 encoded.")
+def is_base64(key):
+    base64_regex = r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$'
+    if not re.match(base64_regex, key):
+        raise ValueError("String is not base64 encoded")
+    return True
+
     
 def check_prefix_and_joincode(prefix, join_code):
     if not isinstance(prefix, str) or not isinstance(join_code, str):
