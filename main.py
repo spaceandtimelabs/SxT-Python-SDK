@@ -131,6 +131,7 @@ namespace = "ETH"
 table_name = "PYTHTEST1"
 # table_name = "PYTHSXT2"
 
+biscuit_array = [{"EpABCiYKD..."}]
 resource_id = f"{namespace}.{table_name}"
 
 create_sql_text = "CREATE TABLE ETH.PYTHTEST1 (ID INT PRIMARY KEY, TEST VARCHAR)"
@@ -151,21 +152,21 @@ print(create_schema_data)
 
 # DDL
 # Create a table
-ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(create_sql_text, access_type, main_public_key, biscuit, biscuit_array)
+ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(create_sql_text, access_type, main_public_key, biscuit_token, biscuit_array)
 print(ddl_create_table_data)
 
 # Alter contents or drop a table
-ddl_data = SpaceAndTimeInit.DDL(resource_id, alter_sql_text, biscuit_token, biscuit_tokens)
+ddl_data = SpaceAndTimeInit.DDL(resource_id, alter_sql_text, biscuit_token, biscuit_array)
 print(ddl_data)
 
 # DML
 # Insert, update, merge and delete contents of a table
-dml_data = SpaceAndTimeInit.DML(insert_sql_text, biscuit, biscuit_array)
+dml_data = SpaceAndTimeInit.DML(insert_sql_text, biscuit_token, biscuit_array)
 print(dml_data)
 
 # DQL
 # Select query and selects all if row_count = 0
-dql_data = SpaceAndTimeInit.DQL(resource_id, select_sql_text, biscuit_token, biscuit_array)
+dql_data = SpaceAndTimeInit.DQL(resource_id, select_sql_text, biscuit, biscuit_array)
 print(dql_data)
 
 # Views API
