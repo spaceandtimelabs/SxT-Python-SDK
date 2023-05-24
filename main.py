@@ -151,21 +151,21 @@ print(create_schema_data)
 
 # DDL
 # Create a table
-ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(resource_id, create_sql_text, access_type, main_public_key, biscuit_token)
+ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(create_sql_text, access_type, main_public_key, biscuit, biscuit_array)
 print(ddl_create_table_data)
 
 # Alter contents or drop a table
-ddl_data = SpaceAndTimeInit.DDL(resource_id, alter_sql_text, biscuit_token)
+ddl_data = SpaceAndTimeInit.DDL(resource_id, alter_sql_text, biscuit_token, biscuit_tokens)
 print(ddl_data)
 
 # DML
 # Insert, update, merge and delete contents of a table
-dml_data = SpaceAndTimeInit.DML(resource_id, insert_sql_text, biscuit_token)
+dml_data = SpaceAndTimeInit.DML(insert_sql_text, biscuit, biscuit_array)
 print(dml_data)
 
 # DQL
 # Select query and selects all if row_count = 0
-dql_data = SpaceAndTimeInit.DQL(resource_id, select_sql_text, biscuit_token)
+dql_data = SpaceAndTimeInit.DQL(resource_id, select_sql_text, biscuit_token, biscuit_array)
 print(dql_data)
 
 # Views API
