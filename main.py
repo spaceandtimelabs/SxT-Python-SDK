@@ -131,7 +131,7 @@ namespace = "ETH"
 table_name = "PYTHTEST1"
 # table_name = "PYTHSXT2"
 
-biscuit_array = [{"EpABCiYKD..."}]
+biscuit_array = ["EpABCiYKD..."]
 resource_id = f"{namespace}.{table_name}"
 
 create_sql_text = "CREATE TABLE ETH.PYTHTEST1 (ID INT PRIMARY KEY, TEST VARCHAR)"
