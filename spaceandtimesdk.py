@@ -151,12 +151,10 @@ class SpaceAndTimeSDK:
         priv_key = main_private_key if os.getenv('PRIVATEKEY') is None else os.getenv('PRIVATEKEY')
 
         if not self.user_id_exists():
-            print('Lets create your user ID!')
             return self.authenticate(priv_key, pub_key)
 
         #2) If user_id already exists, then authenticate 
         else:
-            print('Time to authenticate!')
             return self.authenticate(priv_key, pub_key)
 
 
@@ -431,7 +429,7 @@ class SpaceAndTimeSDK:
         return f'{str(sql_text)} WITH \"public_key={str(public_key)},access_type={access_type}\"'
 
     # Create a Schema
-    def CreateSchema(self, sql_text):
+    def CreateSchema(self, sql_text, biscuit_tokens=[], origin_app=""):
         try:
             validation.validate_string(sql_text)
 
@@ -442,13 +440,15 @@ class SpaceAndTimeSDK:
             api_endpoint = f"{self.base_url}/sql/ddl"
 
             payload = {
+                'biscuits':biscuit_tokens,
                 'sqlText': sql_text
             }
 
             headers = {
-               "accept": "application/json",
-               "content-type": "application/json",
-               "Authorization":f'Bearer {access_token}'
+               "Authorization":f'Bearer {access_token}',
+               "Content-Type": "application/json",
+               "Accept": "application/json",
+               "originApp":origin_app
             }
 
             response = requests.post(api_endpoint, json=payload, headers=headers)
@@ -461,9 +461,8 @@ class SpaceAndTimeSDK:
 
     # DDL
     # Create a table with the given ResourceId
-    def DDLCreateTable(self, resource_id, sql_text, access_type, public_key, biscuit_token):
+    def DDLCreateTable(self, sql_text, access_type, public_key, biscuit, biscuit_tokens=[], origin_app=""):
         try:
-           validation.try_parse_identifier(resource_id)
            validation.validate_string(sql_text)
            validation.validate_string(access_type)
 
@@ -476,15 +475,16 @@ class SpaceAndTimeSDK:
            sql_text_payload = self.convert_SQL_Text(sql_text, public_key, access_type)
 
            payload = {
-               'resourceId': resource_id.upper(),
+               'biscuits':biscuit_tokens,
                'sqlText': sql_text_payload
            }
 
            headers = {
-               "accept": "application/json",
-               "content-type": "application/json",
                "Authorization":f'Bearer {access_token}',
-               "Biscuit": biscuit_token
+               "content-type": "application/json",
+               "Accept": "application/json",
+               "Biscuit": biscuit,
+               "originApp":origin_app
            }
 
            response = requests.post(api_endpoint, json=payload, headers=headers)
@@ -495,9 +495,8 @@ class SpaceAndTimeSDK:
             return {"response" : None, "error" : str(error)}
 
     # Alter and drop a table with the given ResourceId
-    def DDL(self, resource_id, sql_text, biscuit_token):
+    def DDL(self, sql_text, biscuit, biscuit_tokens=[], origin_app=""):
         try:
-            validation.try_parse_identifier(resource_id)
             tokens = self.read_file_contents()
             access_token = tokens["accessToken"]
             validation.validate_string(sql_text)
@@ -505,7 +504,7 @@ class SpaceAndTimeSDK:
             api_endpoint = f"{self.base_url}/sql/ddl"
 
             payload = {
-                "resourceId":resource_id.upper(),
+                "biscuits":biscuit_tokens,
                 "sqlText":sql_text.upper()
             }
 
@@ -513,7 +512,8 @@ class SpaceAndTimeSDK:
                "accept": "application/json",
                "content-type": "application/json",
                "Authorization":f'Bearer {access_token}',
-               "Biscuit": biscuit_token
+               "Biscuit": biscuit,
+               "originApp":origin_app
            }
                         
             response = requests.post(api_endpoint, json=payload, headers=headers)
@@ -526,7 +526,7 @@ class SpaceAndTimeSDK:
     # DML
     # Perform insert, update, merge and delete with the given resourceId
 
-    def DML(self, resource_id, sql_text, biscuit_token):
+    def DML(self, resource_id, sql_text, biscuit, biscuit_tokens=[], origin_app=""):
         try:
             validation.try_parse_identifier(resource_id)
             validation.validate_string(sql_text)
@@ -536,6 +536,7 @@ class SpaceAndTimeSDK:
             api_endpoint = f"{self.base_url}/sql/dml"
 
             payload = {
+                "biscuits":biscuit_tokens,
                 "resourceId":resource_id.upper(),
                 "sqlText":sql_text.upper(),
             }
@@ -544,7 +545,8 @@ class SpaceAndTimeSDK:
                "accept": "application/json",
                "content-type": "application/json",
                "Authorization":f'Bearer {access_token}',
-               "Biscuit": biscuit_token
+               "Biscuit": biscuit,
+               "originApp":origin_app
             }
             
             response = requests.post(api_endpoint, json=payload, headers=headers)
@@ -558,7 +560,7 @@ class SpaceAndTimeSDK:
     # Perform selection with the given resourceId
     # If rowCount is 0, then the query will fetch all of the data
 
-    def DQL(self, resource_id, sql_text, biscuit_token, row_count=0):
+    def DQL(self, resource_id, sql_text, biscuit, biscuit_tokens=[], origin_app="", row_count=0):
         try:
             validation.try_parse_identifier(resource_id)
             validation.validate_string(sql_text)
@@ -570,12 +572,14 @@ class SpaceAndTimeSDK:
 
             if(row_count > 0):
                 payload = {
+                "biscuits":biscuit_tokens,
                 "resourceId":resource_id.upper(),
                 "sqlText":sql_text.upper(),
                 "rowCount":row_count
             }
             else:
                 payload = {
+                "biscuits":biscuit_tokens,
                 "resourceId":resource_id.upper(),
                 "sqlText":sql_text.upper(),
             }
@@ -584,7 +588,8 @@ class SpaceAndTimeSDK:
                "accept": "application/json",
                "content-type": "application/json",
                "Authorization":f'Bearer {access_token}',
-               "Biscuit": biscuit_token
+               "Biscuit": biscuit,
+               "originApp":origin_app
            }
 
             response = requests.post(api_endpoint, json=payload,headers=headers)
