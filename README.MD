@@ -162,7 +162,7 @@ For the generation of biscuits for your Python SDK that is required for performi
 
 	# DML
 	# Use DML() to insert, update, delete and merge queries
-	dml_data = SpaceAndTimeInit.DML("INSERT INTO ETH.TESTTABLE VALUES(5,'x5')", biscuit)
+	dml_data = SpaceAndTimeInit.DML("ETH.TESTTABLE", "INSERT INTO ETH.TESTTABLE VALUES(5,'x5')", biscuit)
 
 	dml_data_response = dml_data["response"]
 	dml_data_error = dml_data["error"]
