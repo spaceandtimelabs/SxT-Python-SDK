@@ -151,7 +151,7 @@ For the generation of biscuits for your Python SDK that is required for performi
 
 
 	# For ALTER and DROP
-	ddl_data = SpaceAndTimeInit.DDL("ETH.TESTTABLE",  "ALTER TABLE ETH.TESTTABLE ADD TEST2 VARCHAR", biscuit)
+	ddl_data = SpaceAndTimeInit.DDL("ALTER TABLE ETH.TESTTABLE ADD TEST2 VARCHAR", biscuit)
 
 	ddl_data_response = ddl_data["response"]
 	ddl_data_error = ddl_data["error"]
