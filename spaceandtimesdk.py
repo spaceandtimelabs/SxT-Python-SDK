@@ -581,7 +581,7 @@ class SpaceAndTimeSDK:
                 payload = {
                 "biscuits":biscuit_tokens,
                 "resourceId":resource_id.upper(),
-                "sqlText":sql_text.upper(),
+                "sqlText":sql_text
             }
 
             headers = {
