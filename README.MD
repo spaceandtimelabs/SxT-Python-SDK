@@ -140,7 +140,7 @@ For the generation of biscuits for your Python SDK that is required for performi
 
 
 	# Only for Create Table Queries
-	# for ALTER and DROP, use DDL()
+	# for DROP, use DDL()
 	ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable("CREATE TABLE ETH.TESTTABLE (id INT PRIMARY KEY, test VARCHAR)", "permissioned", publicKey, biscuit)
 
 	ddl_create_table_response = ddl_create_table_data["response"]
@@ -150,8 +150,8 @@ For the generation of biscuits for your Python SDK that is required for performi
 	print("Error: ", ddl_create_table_error)
 
 
-	# For ALTER and DROP
-	ddl_data = SpaceAndTimeInit.DDL("ETH.TESTTABLE",  "ALTER TABLE ETH.TESTTABLE ADD TEST2 VARCHAR", biscuit)
+	# For DROP
+	ddl_data = SpaceAndTimeInit.DDL("DROP TABLE ETH.TESTTABLE", biscuit)
 
 	ddl_data_response = ddl_data["response"]
 	ddl_data_error = ddl_data["error"]
@@ -162,7 +162,7 @@ For the generation of biscuits for your Python SDK that is required for performi
 
 	# DML
 	# Use DML() to insert, update, delete and merge queries
-	dml_data = SpaceAndTimeInit.DML("INSERT INTO ETH.TESTTABLE VALUES(5,'x5')", biscuit)
+	dml_data = SpaceAndTimeInit.DML("ETH.TESTTABLE", "INSERT INTO ETH.TESTTABLE VALUES(5,'x5')", biscuit)
 
 	dml_data_response = dml_data["response"]
 	dml_data_error = dml_data["error"]

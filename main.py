@@ -136,7 +136,7 @@ resource_id = f"{namespace}.{table_name}"
 
 create_sql_text = "CREATE TABLE ETH.PYTHTEST1 (ID INT PRIMARY KEY, TEST VARCHAR)"
 select_sql_text = "SELECT * FROM ETH.PYTHTEST1"
-alter_sql_text = "ALTER TABLE ETH.PYTHTEST1 ADD BLOCK_NUMBER BIGINT"
+drop_sql_text = "DROP TABLE ETH.PYTHTEST1"
 insert_sql_text = "INSERT INTO ETH.PYTHTEST1 VALUES(1, 'X1')"
 
 
@@ -155,8 +155,8 @@ print(create_schema_data)
 ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(create_sql_text, access_type, main_public_key, biscuit_token, biscuit_array)
 print(ddl_create_table_data)
 
-# Alter contents or drop a table
-ddl_data = SpaceAndTimeInit.DDL(resource_id, alter_sql_text, biscuit_token, biscuit_array)
+# Drop a table
+ddl_data = SpaceAndTimeInit.DDL(resource_id, drop_sql_text, biscuit_token, biscuit_array)
 print(ddl_data)
 
 # DML
