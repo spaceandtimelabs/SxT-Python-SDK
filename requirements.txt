@@ -1,0 +1,8 @@
+cryptography==41.0.3
+ed25519==1.5
+pycryptodomex==3.18.0
+PyNaCl==1.5.0
+python-dotenv==1.0.0
+requests==2.31.0
+schedule==1.2.0
+setuptools==67.6.1
