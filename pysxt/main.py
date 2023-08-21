@@ -156,7 +156,7 @@ ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable(create_sql_text, access_
 print(ddl_create_table_data)
 
 # Drop a table
-ddl_data = SpaceAndTimeInit.DDL(resource_id, drop_sql_text, biscuit_array)
+ddl_data = SpaceAndTimeInit.DDL(drop_sql_text, biscuit_array)
 print(ddl_data)
 
 # DML
