@@ -18,7 +18,9 @@ join_code = os.getenv('JOINCODE')
 prefix = os.getenv('PREFIX')
 user_id = os.getenv('USERID')
 scheme = os.getenv('SCHEME')
+# Where are you assigning the USER_PRIVATE_KEY and USER_PUBLIC_KEY ?
 
+# Line immediately below errored on first run.   What is this doing?  
 tokens = SpaceAndTimeInit.read_file_contents()
 access_token, refresh_token = tokens['accessToken'], tokens['refreshToken']
 
@@ -26,6 +28,7 @@ access_token, refresh_token = tokens['accessToken'], tokens['refreshToken']
 AUTHENTICATION BLOCK
 """
 
+# is this all required to simply login?  
 if access_token: 
     validate_token_data = SpaceAndTimeInit.validate_token()
     validate_token_response, validate_token_error = validate_token_data["response"], validate_token_data["error"]

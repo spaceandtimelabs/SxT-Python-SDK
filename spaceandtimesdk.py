@@ -13,12 +13,16 @@ from dotenv import load_dotenv, set_key, get_key
 from keygen import exported_keys
 
 class SpaceAndTimeSDK:
+
+    # TODO: add """comment strings""" to class and all functions
+
     def __init__(self):
         self.base_url = os.getenv('BASEURL')
 
     """ Authentication APIs """
     # Check if a User is using the ID
     def check_user_identifier(self, user_id):
+        # TODO: I know this is part of the Auth workflow, but logically maybe it belongs to Discovery?
         try:
 
             api_endpoint = f"{self.base_url}/auth/idexists/{user_id}"
@@ -113,6 +117,7 @@ class SpaceAndTimeSDK:
         return private_signing_key
 
     def read_file_contents(self):
+        # TODO: this line errored for me during first test.  What should it do if Session.txt is missing?  Also, why store in file at all?  So one session can traverse multiple Python applications?
         with open("session.txt") as file:
             access_token = file.readline().strip()
             refresh_token = file.readline().strip()
@@ -136,6 +141,7 @@ class SpaceAndTimeSDK:
             file.write(str(refreshTokenExpires) + "\n")
 
     def user_id_exists(self):
+        # why do we have 2 such functions, this and check_user_identifier?  Why not accept User_ID, but default to self.user_id ?  Also, we should set all os.getenv(variables) in the __init__
         user_id = os.getenv('USERID')
         user_id_response = self.check_user_identifier(user_id)["response"]
         
@@ -150,6 +156,7 @@ class SpaceAndTimeSDK:
         pub_key = main_public_key if os.getenv('PUBLICKEY') is None else os.getenv('PUBLICKEY')
         priv_key = main_private_key if os.getenv('PRIVATEKEY') is None else os.getenv('PRIVATEKEY')
 
+        # TODO: I don't see a difference between these two outcomes... why the needless IF?
         if not self.user_id_exists():
             return self.authenticate(priv_key, pub_key)
 
@@ -161,6 +168,7 @@ class SpaceAndTimeSDK:
     #Creates Access and Refresh Tokens for Users
     def authenticate(self, priv_key, pub_key, prefix=""):
 
+        # we should move all os.getenv(variables) to the __init__, so user can override with sxt.user_id = 'stephen' before sxt.authenticate()
         user_id = os.getenv('USERID')
         join_code = os.getenv('JOINCODE')
         scheme = os.getenv('SCHEME')
@@ -330,7 +338,7 @@ class SpaceAndTimeSDK:
         except requests.exceptions.RequestException as error:
             return {"response" : None, "error" : str(error)}
 
-    def discovery_API_Request(self, namespace, table_name, api_endpoint):
+    def discovery_api_request(self, namespace, table_name, api_endpoint):
          try:
            validation.try_parse_identifier(namespace)
            validation.try_parse_identifier(table_name)
@@ -390,7 +398,7 @@ class SpaceAndTimeSDK:
         except requests.exceptions.RequestException as error:
             return {"response" : None, "error" : str(error)}
 
-    def discovery_API_Request_References(self, namespace, table_name, column, api_endpoint):
+    def discovery_api_request_references(self, namespace, table_name, column, api_endpoint):
         try:
            validation.try_parse_identifier(namespace)
            validation.try_parse_identifier(table_name)
@@ -425,11 +433,12 @@ class SpaceAndTimeSDK:
     """ CoreSQL """
 
     @staticmethod
-    def convert_SQL_Text(sql_text, public_key, access_type):
+    def convert_sql_text(sql_text, public_key, access_type):
+        # TODO: not sure this is a good idea... if nothing else, needs a rename... convert_sql_text is really generic, the only way you'd know what it's doing is to look at the code (which isn't the point of an SDK)
         return f'{str(sql_text)} WITH \"public_key={str(public_key)},access_type={access_type}\"'
 
     # Create a Schema
-    def CreateSchema(self, sql_text, biscuit_tokens=[], origin_app=""):
+    def create_schema(self, sql_text, biscuit_tokens=[], origin_app=""):
         try:
             validation.validate_string(sql_text)
 
@@ -461,7 +470,7 @@ class SpaceAndTimeSDK:
 
     # DDL
     # Create a table with the given ResourceId
-    def DDLCreateTable(self, sql_text, access_type, public_key, biscuit, biscuit_tokens=[], origin_app=""):
+    def create_table(self, sql_text, access_type, public_key, biscuit, biscuit_tokens=[], origin_app=""):
         try:
            validation.validate_string(sql_text)
            validation.validate_string(access_type)
@@ -472,7 +481,7 @@ class SpaceAndTimeSDK:
            sql_text = sql_text.upper()
 
            api_endpoint = f"{self.base_url}/sql/ddl"
-           sql_text_payload = self.convert_SQL_Text(sql_text, public_key, access_type)
+           sql_text_payload = self.convert_sql_text(sql_text, public_key, access_type)
 
            payload = {
                'biscuits':biscuit_tokens,
