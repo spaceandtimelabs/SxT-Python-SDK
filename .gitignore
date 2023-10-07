@@ -2,7 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+resources/
+users/
+tests/
+publish.sh
 
 # C extensions
 *.so
