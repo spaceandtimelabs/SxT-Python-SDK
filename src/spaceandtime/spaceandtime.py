@@ -212,7 +212,7 @@ class SpaceAndTime:
         if not user: user = self.user
         if not scope: scope = SXTDiscoveryScope.ALL
         success, response = user.base_api.discovery_get_tables(scope=scope.name, schema=schema, search_pattern=search_pattern)  
-        if success and return_as in [list, str]: response = sorted([tbl['table'] for tbl in response])
+        if success and return_as in [list, str]: response = sorted([ f"{r['namespace']}.{r['table']}" for r in response])
         if success and return_as == str: response = ', '.join(response)
         if success and return_as == json: response = {f"{r['namespace']}.{r['table']}":r for r in response}
         if success and return_as not in [json, dict, list, str]:
