@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from .sxtuser import SXTUser
 from .sxtresource import SXTTable, SXTView
+from .sxtkeymanager import SXTKeyManager
 from .sxtenums import *
 from .sxtexceptions import *
 
@@ -12,6 +13,13 @@ class SpaceAndTime:
     application_name: str = 'SxT-SDK'
     network_calls_enabled:bool = True
     discovery = None
+    key_manager: SXTKeyManager = None
+    GRANT = SXTPermission
+    ENCODINGS = SXTKeyEncodings
+    SQLTYPE = SXTSqlType
+    OUTPUT_FORMAT = SXTOutputFormat
+    TABLE_ACCESS = SXTTableAccessType
+    DISCOVERY_SCOPE = SXTDiscoveryScope
 
 
     def __init__(self, envfile_path=None, api_url=None, 
@@ -28,6 +36,7 @@ class SpaceAndTime:
         if application_name: self.application_name = application_name
         self.logger.info('-'*30 + f'\nSpace and Time SDK initiated for {self.application_name}')
         self.user = SXTUser(logger=self.logger)
+        self.key_manager = SXTKeyManager()
         return None 
     
     @property
