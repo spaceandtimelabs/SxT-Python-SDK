@@ -2,11 +2,11 @@
   
   
 
-## python-sxt-sdk (v.0.0.1)
+## Python Space and Time SDK 
 
   
 
-Python SDK for Space and Time Gateway (python version >= 3.6)
+Python SDK for Space and Time Gateway (python version >= 3.11)
 
   
 
@@ -14,278 +14,237 @@ Python SDK for Space and Time Gateway (python version >= 3.6)
 
   
 
-_Note: Before running the code, rename `.env.sample` to `.env` and ensure that your credentials are setup in the `.env` file properly_
+_Note: The recommended approach to storing keys is using an `.env` file. 
+For more information, please see: https://docs.spaceandtime.io/docs/dotenv_
 
   
 
 ```sh
-pip install -r requirements.txt
+pip install spaceandtime
 ```
 
-The code in `main.py` demonstrates how to call the SDK
+ 
   
 
-## Features
-
-  
-
--  **Sessions**
-
-The SDK implements persistent storage in
-
-1. _File based sessions_
-
-  
-
--  **Encryption**
-
-It supports ED25519 Public key encryption for Biscuit Authorization and securing data in the platform.
-
-  
-
--  **SQL Support**
-
-	- Support for DDL : ```creating own schema(namespace), tables, altering and deleting tables```
-
-	- Support for DML: ```CRUD``` operation support.
-
-	- Support for SQL: ```select``` operations support.
-
-	- Support for SQL Views
-
-  
-
--  **Platform Discovery**
-
-	For fetching metadata and information about the database resources.
-
-	- Namespaces
-	- Tables
-	- Table Columns
-	- Table Indexes
-	- Table Primary Keys
-	- Table Relationships
-	- Table Primary Key References
-	- Table Foreign Key References
-
-  
-  
-
-## Examples
-
-  
-
--  **Initializing the SDK**
+### Getting Started
 
 ```python
+# Initializing the Space and Time usage.
+from spaceandtime import SpaceAndTime
 
-	# Initializing the Space and Time SDK for use.
-	
-	from spaceandtimesdk import SpaceAndTimeSDK
-	SpaceAndTimeInit =  SpaceAndTimeSDK()
+sxt = SpaceAndTime()
+sxt.authenticate()
 
+success, rows = sxt.execute_query(
+	'select * from POLYGON.BLOCKS limit 5')
+print( rows )
 ```
 
-  
+The authentication without arguments will seek out a default `.env` file and use credentials found there.  It also supports passing in a specific ```filepath.env``` or simply supplying ```user_id``` and ```private_key```.
 
--  **Authenticating with the Space and Time Platform**
+The generated ``access_token`` is valid for 25 minutes and the ``refresh_token`` for 30 minutes.
 
-  
-
-Make sure to save your **private key** used in authentication and biscuit generation or else you will not be able to have access to the user and the tables created using the key.
-
-  
-
-The generated ``AccessToken`` is valid for 25 minutes and the ``RefreshToken`` for 30 minutes.
-
-  
+There are a number of convenience features in the SDK for handling return data sets. By default, data sets are returned as a list-of-dictionaries, however can be easily turned into other formats, such as CSV.
 
 ```python
-	# Authenticate yourself using the Space and Time SDK.
-	authenticate_token_data = SpaceAndTimeInit.authenticate_user()
+# use triple-quotes to insert more complicated sql:
+success, rows = sxt.execute_query("""
+	SELECT 
+	substr(time_stamp,1,7) AS YrMth
+	,count(*) AS block_count
+	FROM polygon.blocks 
+	GROUP BY YrMth
+	ORDER BY 1 desc """ )
 
-	authenticate_token_response = authenticate_token_data["response"]
-	authenticate_token_error = authenticate_token_data["error"]
-
-	print("Response: ", authenticate_token_response)
-	print("Error: ", authenticate_token_error)
-
+# print results as CSV
+print( sxt.json_to_csv(rows) )
 ```
 
--  **Generating Biscuits**
+More data transforms will be added over time.
 
-  
+### SXTUser Object
 
-For the generation of biscuits for your Python SDK that is required for performing the SQL Operations to interact with the SxT Data Warehouse, please refer to the [biscuit-cli](https://www.biscuitsec.org/docs/Usage/cli/) documentation which is a CLI tool that can be used for generating biscuits.
-
-  
-
--  **DDL, DML and DQL**
-
-	**Note**:
-	
-	To create a new **schema**, ``ddl_create`` permission is needed.
-
-  
+All SQL requests are handled by an authenticated user object.  The ```sxt``` wrapper object contains a 'default user' object for simplicity, managing and authenticating as needed.  It is however exposed if needed:
 
 ```python
-	# Create a Schema
-	create_schema_data = SpaceAndTimeInit.CreateSchema("CREATE SCHEMA ETH")
-
-	create_schema_response = create_schema_data["response"]
-	create_schema_error = create_schema_data["error"]
-
-	print("Response: ", create_schema_response)
-	print("Error: ", create_schema_error)
-
-
-	# Only for Create Table Queries
-	# for DROP, use DDL()
-	ddl_create_table_data = SpaceAndTimeInit.DDLCreateTable("CREATE TABLE ETH.TESTTABLE (id INT PRIMARY KEY, test VARCHAR)", "permissioned", publicKey, biscuit)
-
-	ddl_create_table_response = ddl_create_table_data["response"]
-	ddl_create_table_error = ddl_create_table_data["error"]
-
-	print("Response: ", ddl_create_table_response)
-	print("Error: ", ddl_create_table_error)
-
-
-	# For DROP
-	ddl_data = SpaceAndTimeInit.DDL("DROP TABLE ETH.TESTTABLE", biscuit)
-
-	ddl_data_response = ddl_data["response"]
-	ddl_data_error = ddl_data["error"]
-
-	print("Response: ", ddl_data_response)
-	print("Error: ", ddl_data_error)
-
-
-	# DML
-	# Use DML() to insert, update, delete and merge queries
-	dml_data = SpaceAndTimeInit.DML("ETH.TESTTABLE", "INSERT INTO ETH.TESTTABLE VALUES(5,'x5')", biscuit)
-
-	dml_data_response = dml_data["response"]
-	dml_data_error = dml_data["error"]
-
-	print("Response: ", dml_data_response)
-	print("Error: ", dml_data_error)
-
-
-	# DQL for selecting content from the blockchain tables.
-	dql_data = SpaceAndTimeInit.DQL("ETH.TESTTABLE",  "SELECT * FROM ETH.TESTTABLE", biscuit)
-
-	dql_data_response = dql_data["response"]
-	dql_data_error = dql_data["error"]
-
-	print("Response: ", dql_data_response)
-	print("Error: ", dql_data_error)
-
+print( sxt.user )
 ```
 
-  
+You can also manage users directly.  This allows you to load and authenticate multiple users at a time, in case your application needs to manage several accounts.
 
--  **DISCOVERY**
+_**All interaction with the network requires an authenticated user.**_
 
-	Discovery SDK calls need a user to be logged in.
-
-  
+The user object owns the authenticated connection to the network, so all requests are submitted by a user object.
 
 ```python
-	# List Namespaces
-	namespace_data = SpaceAndTimeInit.get_namespaces()
+# Multiple Users
+from spaceandtime import SXTUser
 
-	namespace_response = namespace_data["response"]
-	namespace_error = namespace_data["error"]
+suzy = SXTUser('./users/suzy.env', authenticate=True)
 
-	print("Response: ", namespace_response)
-	print("Error: ", namespace_error)
+bill = SXTUser()
+bill.load()         # defaults to "./.env"
+bill.authenticate()
 
-
-	# List Tables in a given namespace
-	# Possible scope values - ALL = all tables, PUBLIC = non-permissioned tables, PRIVATE = tables created by a requesting user
-	get_tables_data = SpaceAndTimeInit.get_tables("ALL","ETH")
-
-	get_tables_response = get_tables_data["response"]
-	get_tables_error = get_tables_data["error"]
-
-	print("Response: ", get_tables_response)
-	print("Error: ", get_tables_error)
-
-	 
-	# List columns for a given table in a namespace
-	get_table_column_data = SpaceAndTimeInit.get_table_columns("TESTTABLE",  "ETH")
-
-	get_table_column_response = get_table_column_data["response"]
-	get_table_column_error = get_table_column_data["error"]
-
-	print("Response: ", get_table_column_response)
-	print("Error: ", get_table_column_error)
-
-	  
-	# List table index for a given table in a namespace
-	get_table_indexes_data = SpaceAndTimeInit.get_table_indexes("TESTTABLE",  "ETH")
-
-	get_table_indexes_response = get_table_indexes_data["response"]
-	get_table_indexes_error = get_table_indexes_data["error"]
-
-	print("Response: ", get_table_indexes_response)
-	print("Error: ", get_table_indexes_error)
-
-
-	# List table primary key for a given table in a namespace
-	get_table_primary_keys_data = SpaceAndTimeInit.get_table_primary_keys("TESTTABLE",  "ETH")
-
-	get_table_primary_keys_response = get_table_primary_keys_data["response"]
-	get_table_primary_keys_error = get_table_primary_keys_data["error"]
-
-	print("Response: ", get_table_primary_keys_response)
-	print("Error: ", get_table_primary_keys_error)
-
-	  
-	# List table relations for a namespace and scope
-	get_table_relationship_data = SpaceAndTimeInit.get_table_relationships("PRIVATE",  "ETH")
-
-	get_table_relationship_response = get_table_relationship_data["response"]
-	get_table_relationship_error = get_table_relationship_data["error"]
-
-	print("Response: ", get_table_relationship_response)
-	print("Error: ", get_table_relationship_error)
-
-	  
-	# List table primary key references for a table, column and a namespace
-	primary_key_reference_data = SpaceAndTimeInit.get_primary_key_references("TESTTABLE",  "TEST",  "ETH")
-
-	primary_key_reference_response =
-	primary_key_reference_data["response"]
-	primary_key_reference_error = primary_key_reference_data["error"]
-
-	print("Response: ", primary_key_reference_response)
-	print("Error: ", primary_key_reference_error)
-
-	  
-	# List table foreign key references for a table, column and a namespace
-	foreign_key_reference_data = SpaceAndTimeInit.get_foreign_key_references("TESTTABLE",  "TEST",  "ETH")
-
-	foreign_key_reference_response = foreign_key_reference_data["response"]
-	foreign_key_reference_error = foreign_key_reference_data["error"]
-
-	print("Response: ", foreign_key_reference_response)
-	print("Error: ", foreign_key_reference_error)
-
+# new user
+pat = SXTUser(user_id='pat')
+pat.new_keypair()
+pat.api_url = suzy.api_url
+pat.save() # <-- Important! don't lose keys!
+pat.authenticate()
 ```
 
-  
-
--  **Storage**
-
-	For File Storage, the following methods are available
+There is also some capability to administer your subscription using the SDK.  This capability will expand more over time.
 
 ```python
+# suzy invites pat to her subcription:
+if suzy.user_type in ['owner','admin']: 
+	joincode = suzy.generate_joincode()
+	success, results = pat.join_subscription(joincode)
+	print( results )
+```
 
-	# File
 
-	SpaceAndTimeInit.write_to_file(AccessToken, RefreshToken, AccessTokenExpires, RefreshTokenExpires)
 
-	SpaceAndTimeInit.read_file_contents()
+### DISCOVERY
 
+There are several discovery functions that allow insight to the Space and Time network metadata.
+
+
+```python
+# discovery calls provide network information
+success, schemas = sxt.discovery_get_schemas()
+
+print(f'There are {len(schemas)} schemas currently on the network.')
+print(schemas)
+```
+
+
+### Creating Tables
+
+The SDK abstracts away complexity from making a new table into a Table object.  This object contains all needed components to be self-sufficient _EXCEPT_ for an authenticated user object, which is required to submit the table creation to the network.
+
+```python
+# Create a table
+from spaceandtime import SXTTable, SXTTableAccessType
+
+tableA = SXTTable(name = "SXTTEMP.MyTestTable", 
+				new_keypair = True, 
+				default_user = sxt.user,
+				logger = sxt.logger,
+				access_type = SXTTableAccessType.PERMISSSIONED)
+
+tableA.create_ddl = """
+	CREATE TABLE {table_name} 
+	( MyID         int
+	, MyName       varchar
+	, MyDate       date
+	, Primary Key(MyID) 
+	) {with_statement}
+""" 
+
+# create new biscuits for your table
+tableA.add_biscuit('read',  tableA.PERMISSION.SELECT )
+
+tableA.add_biscuit('write', tableA.PERMISSION.SELECT, 
+							tableA.PERMISSION.INSERT, 
+							tableA.PERMISSION.UPDATE, 
+							tableA.PERMISSION.DELETE,
+							tableA.PERMISSION.MERGE )
+
+tableA.add_biscuit('admin', tableA.PERMISSION.ALL )
+
+tableA.save() # <-- Important!  Don't lose your keys!
+
+# create with assigned default user
+success, results = tableA.create()  
+```
+
+
+The ```table.create_ddl``` and ```table.with_statement``` property will substitute {names} to replace with class values.  In the example above, the ```{table_name}``` will be replace with ```tableA.table_name``` and the ```{with_statement}``` will be replaced with a valid WITH statement, itself with substitutions for ```{public_key}``` and ```{access_type}```.
+
+Note, if the ```{with_statement}``` placeholder is absent, the table object will attempt to add dynamically.
+
+When adding biscuits, they can either be added as string tokens, or as SXTBiscuit type objects, or as a list of either.
+
+The ```tableA.save()``` function will save all keys, biscuits, and table attributes to a shell-friendly format, such that you could execute the file in shell and load all values to environment variables, for use in other scripting. For example,
+
+```sh
+Stephen~$ . ./table--SXTTEMP.New_TableName.sql
+Stephen~$ echo $TABLE_NAME
+  SXTTEMP.New_TableName
+```
+This allows table files created in the python SDK to be used with the SxT CLI. 
+
+
+### Insert, Deletes, and Selects
+
+There are helper functions to assist quickly adding, removing, and selecting data in the table.  Note, these are just helper functions for the specific table object - for more general SQL interface, use the ```sxt.execute_query()``` function. 
+
+```python
+from pprint import pprint # for better viewing of data
+
+# generate some dummy data
+cols = ['MyID','MyName','MyDate']
+data = [[i, chr(64+i), f'2023-09-0{i}'] for i in list(range(1,10))]
+
+# insert into the table
+tableA.insert(columns=cols, data=data)
+
+# select out again, just for fun
+success, rows = tableA.select()
+pprint( rows )
+
+tableA.delete(where='MyID=6')
+
+# one less than last time
+success, rows = tableA.select()
+pprint( rows )
+```
+
+### Creating Views 
+
+The SXTView object inherits from the same base class as SXTTable, so the two are very similar.  One notable difference is a view's need for a biscuit for each table referenced.  To add clarity and remind of this requirement, a view contains a ```table_biscuit``` property. Also note that views don't need DML PERMISSIONS, like insert or delete.
+
+```python
+# create a view 
+from spaceandtime import SXTView
+
+viewB = SXTView('SXTTEMP.MyTest_Odds',
+ 				default_user=tableA.user, 
+				private_key=tableA.private_key, 
+				logger=tableA.logger)
+
+viewB.add_biscuit('read', viewB.PERMISSION.SELECT)
+viewB.add_biscuit('admin', viewB.PERMISSION.ALL) 
+viewB.table_biscuit = tableA.get_biscuit('admin')
+
+viewB.create_ddl = """
+	CREATE VIEW {view_name} 
+	{with_statement} 
+	AS
+	SELECT *
+	FROM """ + tableA.table_name + """
+	WHERE MyID in (1,3,5,7,9) """
+
+viewB.save() # <-- Important! don't lose keys!
+
+success, results = viewB.create()
+```
+
+We've used the same private key for the table and the view.  This is NOT required, but is convenient if you are building a view atop only one table.  
+
+Each object comes with a pre-built ```recommended_filename``` which acts as the default for ```save()``` and ```load()```.  
+
+```python
+print( tableA.recommended_filename )
+print( viewB.recommended_filename )
+print( suzy.recommended_filename )
+```
+
+Once you're done, it's best practice to clean up.  
+
+```python
+viewB.drop()
+tableA.drop()
 ```
