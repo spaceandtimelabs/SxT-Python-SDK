@@ -565,6 +565,7 @@ class SXTResource():
 
 class SXTTable(SXTResource):
     access_type: SXTTableAccessType 
+    immutable:bool = False
 
     def __init__(self, name:str='', from_file:Path=None, default_user:SXTUser = None, 
                  private_key:str = '', new_keypair:bool = False, key_manager:SXTKeyManager = None,
@@ -573,8 +574,9 @@ class SXTTable(SXTResource):
         self.resource_type = SXTResourceType.TABLE    
         super().__init__(name, from_file, default_user, private_key, new_keypair, key_manager, application_name, logger)
         self.access_type = access_type
+        self.__allprops__.insert(2, 'immutable')
         self.__allprops__.insert(2, 'access_type')
-        self.__with__= 'WITH "public_key={public_key}, access_type={access_type}"'
+        self.__with__= 'WITH "public_key={public_key}, access_type={access_type}, immutable={immutable}"'
         
     @property
     def table_name(self) ->str:
@@ -762,6 +764,7 @@ if __name__ == '__main__':
         , Primary Key  (MyID) 
         )  
     """
+    tableA.immutable = True
     tableA.save()  # save to local file, to prevent lost keys
     success, results = tableA.create()  # Create table on Space and Time network
     
