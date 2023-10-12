@@ -262,7 +262,6 @@ if __name__ == '__main__':
             success, tables = sxt.discovery_get_tables('SXTDEMO', return_as=t)
             if success: pprint( tables )
 
-
         # Create a table (with random name)
         tableA = SXTTable(name = f"SXTTEMP.MyTestTable_{randpad()}", 
                         new_keypair=True, default_user=sxt.user, logger=sxt.logger,
