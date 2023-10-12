@@ -8,3 +8,4 @@ from .sxtenums import *
 from .sxtexceptions import *
 
 __version__ = "1.1.6"
+
