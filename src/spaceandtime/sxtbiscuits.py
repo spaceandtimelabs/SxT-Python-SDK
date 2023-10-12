@@ -1,6 +1,6 @@
 import logging, json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from biscuit_auth import KeyPair, PrivateKey, PublicKey, Authorizer, Biscuit, BiscuitBuilder, BlockBuilder, Rule, DataLogError
 from .sxtexceptions import SxTArgumentError, SxTFileContentError, SxTBiscuitError, SxTKeyEncodingError
 from .sxtenums import SXTPermission, SXTKeyEncodings
@@ -18,7 +18,10 @@ class SXTBiscuit():
     GRANT = SXTPermission
     ENCODINGS = SXTKeyEncodings
     __cap:dict = {'schema.resource':['permission1', 'permission2']}
+    __usr:list = ['userA','userB']
+    __time:list = [ [datetime.now(), datetime.now() + timedelta(30)] ]
     __bt: str = ''
+    __btchanged:bool = True
     __lastresource: str = ''
     __manualtoken:bool = False
     __parentbiscuit__:bool = False
@@ -36,6 +39,8 @@ class SXTBiscuit():
         if new_keypair: self.key_manager.new_keypair()
         if private_key: self.private_key = private_key
         self.__cap = {}
+        self.__usr = []
+        self.__time = []
         if name: self.name = name 
         if from_file and Path(from_file).exists: self.load(from_file)
         if biscuit_token: 
@@ -55,11 +60,14 @@ class SXTBiscuit():
 
     @property
     def biscuit_text(self):
-        b = []
+        bis = sorted([ f'check if {self.domain}:user("{u}");' for u in self.__usr]) 
+        bis.extend( sorted( [ f'check if time($time), $time <= {t[0].strftime("%Y-%m-%dT%H:%M:%SZ")}, $time >= {t[1].strftime("%Y-%m-%dT%H:%M:%SZ")};' for t in self.__time] ))
         for resource, permissions in self.__cap.items():
-            for permission in sorted(permissions):
-                b.append(f'{self.domain}:capability("{permission}", "{str(resource).lower()}");')
-        return '\n'.join(b)
+            for permission in sorted([p.value for p in permissions]):
+                bis.append(f'{self.domain}:capability("{permission}", "{str(resource).lower()}");')    
+        return '\n'.join(bis)
+
+        
 
     @property
     def biscuit_token(self) ->str:
@@ -67,7 +75,7 @@ class SXTBiscuit():
         if not self.private_key or not self.biscuit_text: 
             self.__bt = ''
             return ''
-        if not self.__bt: self.__bt = self.regenerate_biscuit_token()
+        if self.__btchanged: self.__bt = self.regenerate_biscuit_token()
         return self.__bt
     
     @property
@@ -80,7 +88,7 @@ class SXTBiscuit():
     @private_key.setter
     def private_key(self, value):
         self.key_manager.private_key = value 
-        self.__bt = ''
+        self.__btchanged = True
 
     @property
     def public_key(self) ->str :
@@ -88,6 +96,7 @@ class SXTBiscuit():
     @public_key.setter
     def public_key(self, value):
         self.key_manager.public_key = value 
+        self.__btchanged = True
 
     @property
     def encoding(self) ->str :
@@ -106,9 +115,9 @@ class SXTBiscuit():
         Regenerates the biscuit_token from class.biscuit_text and class.private_key. 
 
         For object consistency, this only leverages the class objects, so there are no arguments.  
-        To build the biscuit_text, clear_capabilities() and then add_capability(), or if you want to import 
-        an existing datalog file, you can load capabilities_from_text(). This function will error without 
-        a valid private_key and biscuit_text.
+        To build the biscuit_text, add_capability(), add_user_check(), or add_time_check, or if you want 
+        to import an existing datalog file, you can load capabilities_from_text(). This function will 
+        error without a valid private_key and biscuit_text.
 
         Args: 
             None
@@ -116,6 +125,8 @@ class SXTBiscuit():
         Returns: 
             str: biscuit_token in base64 format. 
         """
+        self.__btchanged = True
+
         if not self.private_key:
             raise SxTArgumentError("Private Key is required to create a biscuit", logger=self.logger)
         
@@ -126,6 +137,7 @@ class SXTBiscuit():
         try:
             private_key_obj = PrivateKey.from_hex(self.key_manager.private_key_to(SXTKeyEncodings.HEX))
             biscuit = BiscuitBuilder(self.biscuit_text).build(private_key_obj)
+            self.__btchanged = False
             return biscuit.to_base64() 
         except DataLogError as ex:
             errmsg = ex
@@ -142,9 +154,101 @@ class SXTBiscuit():
         raise SxTBiscuitError('Biscuit not validated with Public Key', logger=self.logger)
 
 
+
+    def add_time_check(self, start_datetime:datetime = None, end_datetime:datetime = None):
+        """--------------------
+        Uniquiely adds a valid time window to the biscuit, outside of which the biscuit is invalid.
+
+        Args: 
+            start_datetime (datetime): Beginning of valid time window. If omitted, defaults to now()
+            end_datetime (datetime): End of valid time window. If omitted, defaults to 90 days in the future.
+
+        Returns: 
+            int: Number of checks added (1 or 0)
+
+        Examples:
+            >>> from datetime import datetime, timedelta
+            >>> bb = SXTBiscuit()
+            >>> bb.add_capability("Schema.TableA", bb.GRANT.SELECT)
+            1
+            >>> bb.add_time_check( datetime.now(), datetime.now() + timedelta(30) )
+            1
+            >>> bb.add_time_check( datetime.now(), datetime.now() + timedelta(30) )
+            0
+        """
+        self.__btchanged = True
+
+        if not start_datetime: start_datetime = datetime.now()
+        if not end_datetime:   end_datetime = start_datetime + timedelta(90)
+        
+        final_times = [(start_datetime, end_datetime)]
+
+        beginning_user_count = len(self.__time)
+        final_times.extend( self.__time )
+        final_times = list(set(final_times))
+        ending_user_count = len(final_times)
+        added_count = ending_user_count - beginning_user_count
+        dup_count = 1 - added_count
+
+        self.__time = [u for u in final_times]
+
+        self.logger.info(f'Added {added_count} time frame{", " if added_count==1 else "s,"} from total 1 submitted ({dup_count} duplicate{"" if dup_count==1 else "s"})')
+        return added_count
+
+
+    def add_user_check(self, *users):
+        """--------------------
+        Uniquely adds a list of user checks to a biscuit, allowing only those users access.
+
+        If a check is added, then the biscuit is only valid if all checks are satisfied.
+
+        Args: 
+            users (*): Any number of UserIDs, as strings or lists of strings, to enable for the biscuit.
+
+        Returns: 
+            int: Number of checks added (excluding duplicates)
+
+        Examples:
+            >>> bb = SXTBiscuit()
+            >>> bb.add_capability("Schema.TableA", bb.GRANT.SELECT)
+            1
+            >>> bb.add_user_check("some_username")
+            1
+            >>> bb.add_user_check("some_other_username")
+            1
+            >>> bb.add_user_check("some_other_username")
+            0
+        """
+        self.__btchanged = True
+        
+        final_users = []
+        [final_users.extend(p) for p in users if type(p) == list ]
+        [final_users.append(p) for p in users if type(p) == str]
+
+        if len([p for p in users if type(p) != list and type(p) != str ]) != 0:
+            msg = 'Can only add UserIDs as strings or list of strings.'
+            self.logger.error(msg)
+            raise KeyError(msg)
+
+        beginning_user_count = len(self.__usr)
+        submitted_count = len(final_users)
+        final_users = list(set(final_users))
+        unique_submitted_count = len(final_users)
+        final_users.extend( self.__usr )
+        final_users = list(set(final_users))
+        ending_user_count = len(final_users)
+        added_count = ending_user_count - beginning_user_count
+        dup_count = submitted_count - added_count
+
+        self.__usr = [u for u in final_users]
+
+        self.logger.info(f'Added {added_count} user{", " if added_count==1 else "s,"} from total {submitted_count} submitted ({dup_count} duplicate{"" if dup_count==1 else "s"})')
+        return added_count
+
+
     def add_capability(self, resource:str, *permissions):
         """--------------------
-        Adds a capability to the existing biscuit structure. 
+        Uniquely adds a capability to the existing biscuit structure. 
 
         Args:
             resource (str): Resource (Schema.Resource) to which permissions are applied.
@@ -154,44 +258,51 @@ class SXTBiscuit():
             int: Number of items added (excluding duplicates)
 
         Examples:
-            >>> bb = SXTBiscuitBuilder()
-            >>> bb.add_capability("Schema.TableA", "SELECT")
+            >>> bb = SXTBiscuit()
+            >>> bb.add_capability("Schema.TableA", bb.GRANT.SELECT)
             1
-            >>> bb.add_capability("Schema.TableA", "INSERT")
-            True
-            >>> bb.add_capability("Schema.TableA", "INSERT")
-            False
+            >>> bb.add_capability("Schema.TableA", bb.GRANT.INSERT)
+            1
+            >>> bb.add_capability("Schema.TableA", bb.GRANT.INSERT)
+            0
         """
+        self.__btchanged = True
         self.__lastresource = resource
         if resource not in self.__cap: self.__cap[resource] = []
+
         if 'ALL' in self.__cap[resource] or '*' in self.__cap[resource]:
             self.logger.warning('Cannot add other permissions to a biscuit containing ALL permissions.  Request disregarded.')
             return self.__isall__(resource)
-        initial_count = len(self.__cap[resource])
-        process_count = 0
+
         final_permissions = []
-        for permission in permissions: 
-            process_count += 1
-            if type(permission) == list: 
-                if 'ALL' in permission: return self.__isall__(resource)
-                final_permissions += list(permission)
-                process_count += len(list(permission))-1
-            else:
-                if permission.name == 'ALL': return self.__isall__(resource)
-                final_permissions.append(permission)
-        self.__cap[resource] += [p.value for p in final_permissions]
-        self.__cap[resource] = list(set(self.__cap[resource]))
-        self.__bt = ''
-        added_count = len(self.__cap[resource]) - initial_count
-        self.logger.info(f'Added {added_count} permissions, from total {process_count} submitted ({process_count - added_count} duplicates)')
+        [final_permissions.extend(p) for p in permissions if type(p) == list ]
+        [final_permissions.append(p) for p in permissions if type(p) == SXTPermission]
+        
+        if len([p for p in permissions if type(p) != list and type(p) != SXTPermission ]) != 0:
+            msg = 'Can only add SXTPermission (GRANT) data type to a biscuit.'
+            self.logger.error(msg)
+            raise KeyError(msg)
+        
+        beginning_resource_count = len(self.__cap[resource])
+        submitted_count = len(final_permissions)
+        final_permissions = list(set(final_permissions))
+        unique_submitted_count = len(final_permissions)
+        final_permissions.extend( self.__cap[resource] )
+        final_permissions = list(set(final_permissions))
+        ending_resource_count = len(final_permissions)
+        added_count = ending_resource_count - beginning_resource_count
+        dup_count = submitted_count - added_count
+
+        if self.GRANT.ALL in final_permissions:
+            self.__cap[resource] = [self.GRANT.ALL]
+            self.logger.info(f'Added ALL permissions, replacing a total of {ending_resource_count - 1} other permissions.')
+            return 1  # permissions added
+
+        self.__cap[resource] = final_permissions
+
+        self.logger.info(f'Added {added_count} permission{", " if added_count==1 else "s,"} from total {submitted_count} submitted ({dup_count} duplicate{"" if dup_count==1 else "s"})')
         return added_count
 
-    def __isall__(self, resource):
-        total_count = len(self.__cap[resource])
-        self.__cap[resource] = ['*']
-        self.logger.info(f'Added ALL permissions, replacing a total of {total_count} other permissions.')
-        return 1
-        
 
     def capabilities_from_text(self, biscuit_text:str) -> None:
         """--------------------
@@ -204,6 +315,7 @@ class SXTBiscuit():
             str: biscuit_text that has been digested and re-processed.
 
         """
+        self.__btchanged = True
         biscuit_lines = str(biscuit_text).strip().split('\n')
         caps = {}
         self.logger.debug(f'Translating supplied text into biscuit capabilities...')
@@ -219,20 +331,24 @@ class SXTBiscuit():
         for r in list(caps.keys()):
             caps[r] = list(set(caps[r]))
         self.__cap = caps
-        self.__bt = ''
+        
         self.logger.debug(f'Successfully translated biscuit_text to biscuit capabilities objects.')
         return None
 
 
-    def capabilities_from_token(self, biscuit_token:str) -> None:
+    def load_from_token(self, biscuit_token:str) -> None:
+        self.__btchanged = True
         raise NotImplementedError('Not implemented yet. Please check back later.')
 
 
-    def clear_capabilities(self):
+    def clear_biscuit(self):
         """Clears all existing capabilities from the biscuit structure"""
         self.__cap = {}
-        self.__bt = ''
-        self.logger.debug('Clearing all biscuit capabilities')
+        self.__usr = []
+        self.__time = []
+        self.__bt = ""
+        self.__btchanged = True
+        self.logger.debug('Clearing all biscuit definitions')
         return None
 
 
@@ -328,6 +444,7 @@ class SXTBiscuit():
               self.logger.error(f'File not loaded due to missing, malformed content, or simply unable to load JSON: \n{filepath}')
               return None
         try:
+            self.__btchanged = True
             new_key_encoding = self.key_manager.get_encoding_type(content['private_key'])
             new_private_key =  self.key_manager.convert_key(content['private_key'], new_key_encoding, SXTKeyEncodings.BYTES)
         except SxTArgumentError: 
@@ -350,14 +467,24 @@ if __name__ == '__main__':
 
     # BASIC USAGE
     bis = SXTBiscuit(name='my first biscuit', new_keypair=True)
-    bis.add_capability('schema.SomeTable',    bis.GRANT.SELECT, bis.GRANT.INSERT, bis.GRANT.UPDATE)
+    bis.add_capability('schema.SomeTable',    bis.GRANT.SELECT, bis.GRANT.INSERT, bis.GRANT.INSERT, bis.GRANT.UPDATE, [bis.GRANT.CREATE, bis.GRANT.DROP ])
+    bis.add_capability('schema.SomeTable',    bis.GRANT.ALTER, [bis.GRANT.CREATE, bis.GRANT.DROP ])
+    bis.add_capability('schema.SomeTable',    bis.GRANT.SELECT) # deduped
     bis.add_capability('schema.AnotherTable', bis.GRANT.SELECT)
+    bis.add_user_check('test_userA')
+    bis.add_user_check('test_userB')
+    bis.add_user_check('test_userB') # deduped
+    starttime = datetime.now()
+    enddtime = starttime + timedelta(365)
+    bis.add_time_check(starttime, enddtime)
+    bis.add_time_check(starttime, enddtime) # deduped
+    print( bis.biscuit_text  )
     print( bis.biscuit_token )
     # check out https://www.biscuitsec.org/ for external validation.
 
      
     # Permissions can be supplied as individual items, a list of items, or both
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('schema.SomeTable', bis.GRANT.SELECT, [bis.GRANT.UPDATE, bis.GRANT.INSERT, bis.GRANT.DELETE], bis.GRANT.MERGE) 
     
     # Permissions will also deduplicate themselves
@@ -366,23 +493,23 @@ if __name__ == '__main__':
     print( bis )
 
     # Resources with no permissions never make it into the biscuit
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('schema.NoPermissions')
     print( f'-->{bis.biscuit_text}<--' )
     print( f'-->{bis.biscuit_token}<--' )
 
     # You can add ALL permissions at once
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('schema.SomeTable', bis.GRANT.ALL, bis.GRANT.SELECT )
     print( bis )
 
     # To build a "wildcard" biscuit (although not recommended beyond testing)
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('*', bis.GRANT.ALL)
     print( bis )
 
     # Note, assigning ALL to permissions will remove all other permissions
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('*', bis.GRANT.SELECT, bis.GRANT.INSERT, bis.GRANT.DELETE)
     bis.add_capability('*', bis.GRANT.ALL)
     print( bis )
@@ -398,7 +525,7 @@ if __name__ == '__main__':
 
 
     # Save biscuit information to disk, so keys are not lost
-    bis.clear_capabilities()
+    bis.clear_biscuit()
     bis.add_capability('schema.SomeTable', bis.GRANT.SELECT, [bis.GRANT.UPDATE, bis.GRANT.INSERT, bis.GRANT.DELETE], bis.GRANT.MERGE) 
     save_file = './biscuits/biscuit_{resource}_{date}.json'
     print( bis.save(save_file, overwrite = True) )
