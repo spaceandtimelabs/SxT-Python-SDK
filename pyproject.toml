@@ -1,0 +1,44 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spaceandtime"
+version = "1.1.5"
+description = "SDK for Space and Time verifiable database"
+authors = [{ name = "Stephen Hilton", email = "stephen.hilton@spaceandtime.io" }]
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["space and time", "sxt", "spaceandtime", "verifiable", "database", "web3", "blockchain", "data warehouse", "data"]
+dependencies = [
+    "requests >= 2.31.0",
+    "pynacl >= 1.5.0",
+    "python-dotenv >= 1.0.0",
+    "biscuit-python >= 0.2.0"
+]
+
+
+[project.optional-dependencies]
+dev = ["pip-tools", "pytest"]
+
+[project.urls]
+Homepage = "https://spaceandtime.io"
+Docs = "https://docs.spaceandtime.io"
+Documentation = "https://docs.spaceandtime.io"
+Github = "https://github.com/spaceandtimelabs/SxT-Python-SDK"
+
+[project.scripts]
+sxtlogin = "spaceandtime.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]  
+# include = ["my_package*"]  # package names should match these glob patterns (["*"] by default)
+# exclude = ["my_package.tests*"]  # exclude packages matching these glob patterns (empty by default)
