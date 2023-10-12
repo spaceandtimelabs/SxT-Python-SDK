@@ -211,11 +211,10 @@ class SpaceAndTime:
         """        
         if not user: user = self.user
         if not scope: scope = SXTDiscoveryScope.ALL
-        if scope == SXTDiscoveryScope.ALL: 
-            self.logger.warning('Warning, scope of ALL requires special admin permissions.')
         success, response = user.base_api.discovery_get_tables(scope=scope.name, schema=schema, search_pattern=search_pattern)  
-        if success and return_as in [list, str]: response = sorted([tbl['table'] for tbl in response])
+        if success and return_as in [list, str]: response = sorted([ f"{r['namespace']}.{r['table']}" for r in response])
         if success and return_as == str: response = ', '.join(response)
+        if success and return_as == json: response = {f"{r['namespace']}.{r['table']}":r for r in response}
         if success and return_as not in [json, dict, list, str]:
             self.logger.warning('Supplied an unsupported return type, only [json, list, str] currently supported. Defaulting to dict.')
         return success, response
@@ -259,6 +258,9 @@ if __name__ == '__main__':
         pprint(f'There are {len(schemas)} schemas currently on the network.')
         pprint(schemas)
 
+        for t in [list, json, str]:
+            success, tables = sxt.discovery_get_tables('SXTDEMO', return_as=t)
+            if success: pprint( tables )
 
         # Create a table (with random name)
         tableA = SXTTable(name = f"SXTTEMP.MyTestTable_{randpad()}", 
