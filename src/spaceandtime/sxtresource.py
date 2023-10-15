@@ -1,10 +1,10 @@
 import logging, datetime, json, random
 from pathlib import Path
-from sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
-from sxtexceptions import SxTArgumentError, SxTFileContentError
-from sxtbiscuits import SXTBiscuit
-from sxtkeymanager import SXTKeyManager
-from sxtuser import SXTUser
+from .sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
+from .sxtexceptions import SxTArgumentError, SxTFileContentError
+from .sxtbiscuits import SXTBiscuit
+from .sxtkeymanager import SXTKeyManager
+from .sxtuser import SXTUser
 
 class SXTResource():
     # child objects should override: self.__with__, has_with_statement(), self.resource_type
@@ -653,6 +653,8 @@ class SXTTable(SXTResource):
                 response['warning'] = msg
                 self.logger.error(msg)
                 return success, response
+        else: # manual sql_text
+            success, response = user.base_api.sql_exec(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name)
         return success, response
 
 
@@ -849,6 +851,7 @@ if __name__ == '__main__':
 
         # perform insert
         tableA.insert(columns=cols, data=data)
+        tableA.insert(sql_text= f"Insert into {tableA.table_name} values (20, 'manual test', '2023-01-01')" )
 
         # select records back, just to verify
         success, results = tableA.select()

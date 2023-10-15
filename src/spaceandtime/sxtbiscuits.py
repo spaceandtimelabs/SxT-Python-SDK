@@ -2,9 +2,9 @@ import logging, json
 from pathlib import Path
 from datetime import datetime
 from biscuit_auth import KeyPair, PrivateKey, PublicKey, Authorizer, Biscuit, BiscuitBuilder, BlockBuilder, Rule, DataLogError
-from sxtexceptions import SxTArgumentError, SxTFileContentError, SxTBiscuitError, SxTKeyEncodingError
-from sxtenums import SXTPermission, SXTKeyEncodings
-from sxtkeymanager import SXTKeyManager
+from .sxtexceptions import SxTArgumentError, SxTFileContentError, SxTBiscuitError, SxTKeyEncodingError
+from .sxtenums import SXTPermission, SXTKeyEncodings
+from .sxtkeymanager import SXTKeyManager
 
 
 

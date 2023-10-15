@@ -1,11 +1,11 @@
 import logging, random, time, json
 from datetime import datetime
 from pathlib import Path
-from sxtuser import SXTUser
-from sxtresource import SXTTable, SXTView
-from sxtkeymanager import SXTKeyManager
-from sxtenums import *
-from sxtexceptions import *
+from .sxtuser import SXTUser
+from .sxtresource import SXTTable, SXTView
+from .sxtkeymanager import SXTKeyManager
+from .sxtenums import *
+from .sxtexceptions import *
 
 class SpaceAndTime:
 

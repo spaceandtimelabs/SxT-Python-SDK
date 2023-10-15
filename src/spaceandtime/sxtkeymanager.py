@@ -2,8 +2,8 @@ import logging, base64
 from pathlib import Path 
 import nacl.signing
 from biscuit_auth import KeyPair, PrivateKey 
-from sxtexceptions import SxTKeyEncodingError, SxTArgumentError, SxTBiscuitError
-from sxtenums import SXTPermission, SXTKeyEncodings
+from .sxtexceptions import SxTKeyEncodingError
+from .sxtenums import SXTKeyEncodings
 
 
 
