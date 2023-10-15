@@ -1,8 +1,8 @@
 import requests, logging, json
 from pathlib import Path
-from .sxtenums import SXTApiCallTypes
-from .sxtexceptions import SxTArgumentError
-from .sxtbiscuits import SXTBiscuit
+from sxtenums import SXTApiCallTypes
+from sxtexceptions import SxTArgumentError
+from sxtbiscuits import SXTBiscuit
 
 
 class SXTBaseAPI():

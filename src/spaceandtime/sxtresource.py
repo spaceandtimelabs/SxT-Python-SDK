@@ -1,10 +1,10 @@
 import logging, datetime, json, random
 from pathlib import Path
 from sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
-from .sxtexceptions import SxTArgumentError, SxTFileContentError
-from .sxtbiscuits import SXTBiscuit
-from .sxtkeymanager import SXTKeyManager
-from .sxtuser import SXTUser
+from sxtexceptions import SxTArgumentError, SxTFileContentError
+from sxtbiscuits import SXTBiscuit
+from sxtkeymanager import SXTKeyManager
+from sxtuser import SXTUser
 
 class SXTResource():
     # child objects should override: self.__with__, has_with_statement(), self.resource_type

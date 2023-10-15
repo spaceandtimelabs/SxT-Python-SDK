@@ -1,7 +1,7 @@
 import os, logging, datetime 
-from .sxtexceptions import SxTAuthenticationError, SxTArgumentError
-from .sxtkeymanager import SXTKeyManager, SXTKeyEncodings
-from .sxtbaseapi import SXTBaseAPI, SXTApiCallTypes 
+from sxtexceptions import SxTAuthenticationError, SxTArgumentError
+from sxtkeymanager import SXTKeyManager, SXTKeyEncodings
+from sxtbaseapi import SXTBaseAPI, SXTApiCallTypes 
 from pathlib import Path
 from dotenv import load_dotenv
 
