@@ -646,7 +646,7 @@ class SXTTable(SXTResource):
                 for row in data[:999]:
                     sql_text_rows.append( "('" + str("', '").join([str(val) for val in row]) + "')" )
                 sql_text = sql_text_prefix + ',\n'.join(sql_text_rows)
-                success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name,resources=[self.table_name])
+                success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name, resources=[self.table_name])
                 data = data[999:]
             if not success: 
                 msg = 'NOTE: data may have been left in a partially inserted state.'
@@ -654,7 +654,7 @@ class SXTTable(SXTResource):
                 self.logger.error(msg)
                 return success, response
         else: # manual sql_text
-            success, response = user.base_api.sql_exec(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name)
+            success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name, resources=[self.table_name])
         return success, response
 
 
