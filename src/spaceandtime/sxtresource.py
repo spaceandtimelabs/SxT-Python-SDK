@@ -1,6 +1,6 @@
 import logging, datetime, json, random
 from pathlib import Path
-from .sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
+from sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
 from .sxtexceptions import SxTArgumentError, SxTFileContentError
 from .sxtbiscuits import SXTBiscuit
 from .sxtkeymanager import SXTKeyManager
@@ -584,21 +584,94 @@ class SXTTable(SXTResource):
         self.resource_name = value
 
 
+    def get_column_names(self) -> dict:
+        """Returns a dictonary of column_name : data_type as defined in the create_ddl.
+        
+        Useful when an iterable list of columns (and types) is required, such as building 
+        INSERT statements or view SELECT lists.  Order should be preserved, although as a dict 
+        object type, this is technically not gauranteed.
+        """
+        rtn = {}
+
+        # prep ddl to isolate columns 
+        ddl = str(self.create_ddl).replace('\t',' ').replace('\n',' ').strip()
+        while '  ' in ddl: ddl = ddl.replace('  ',' ')
+        first_paren = ddl.find('(')+1
+        for i in range(len(ddl), 1, -1):
+            if ddl[i:i+1] == ')': 
+                last_paren = i 
+                break
+        
+        # process columns
+        cols = [c.strip() for c in ddl[first_paren:last_paren].split(',') ]
+        for col in cols:
+            if col.lower().startswith('primary key'): continue
+            colname = col.split(' ')[0]
+            coltype = col.split(' ')[1]
+            rtn[colname] = coltype
+
+        return rtn 
+
+
     def insert(self, sql_text:str = None, columns:list = None, data:list = None, user:SXTUser = None, biscuits:list = None):
+        """-----------------
+        Inserts records into the table, in one DML request per 1000 rows.
+
+        The process uses a column list and data list (rather than a single dictionary) because the multi-row 
+        insert syntax requires a single column definition, with all data rows expected to follow that same 
+        order and completeness. This also adheres better to common high-volumn analytic formats like CSV, 
+        where repeating column definitions becomes onerous.  NOTE: this submits in 1000 row transactions, 
+        so it is possible to have partially successful loads (in 1000 row chunks). Once any part insert fails
+        the holistic process stops and reports an error, and reports Success = False.
+
+        Args:
+            sql_text (str): If set, columns and data are ignored and this SQL text is simply passed thru to the network directly as a DML request.
+            columns (list): List of columns to build the INSERT statement. Order must match the data list.
+            data (list): List of data that matches the columns order.  
+            user (SXTUser): User who will execute the request. Defaults to the default user.
+            biscuits (list): List of biscuits required to authorize this request. 
+
+        Returns: 
+            bool: Success flag, True if the data was fully inserted, False if any of the records failed.
+            object: Row output of the SQL request, in JSON format, or if error, details returned from the request.
+        """
         user = self.get_first_valid_user(user)
         if not biscuits: biscuits = list(self.biscuits) 
         if biscuits == []: 
             raise SxTArgumentError('A biscuit with INSERT permissions must be included.', logger=self.logger)
         if not sql_text:
-            sql_text_prefix = f"INSERT INTO {self.table_name} ({ ', '.join(columns) }) VALUES \n"
-            sql_text_rows = []
-            for row in data:
-                sql_text_rows.append( "('" + str("', '").join([str(val) for val in row]) + "')" )
-            sql_text = sql_text_prefix + ',\n'.join(sql_text_rows)
-        return user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name,resources=[self.table_name])
+            while data !=[]:
+                sql_text_prefix = f"INSERT INTO {self.table_name} ({ ', '.join(columns) }) VALUES \n"
+                sql_text_rows = []
+                for row in data[:999]:
+                    sql_text_rows.append( "('" + str("', '").join([str(val) for val in row]) + "')" )
+                sql_text = sql_text_prefix + ',\n'.join(sql_text_rows)
+                success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name,resources=[self.table_name])
+                data = data[999:]
+            if not success: 
+                msg = 'NOTE: data may have been left in a partially inserted state.'
+                response['warning'] = msg
+                self.logger.error(msg)
+                return success, response
+        return success, response
 
 
     def delete(self, sql_text:str = None, where:str = '0=1', user:SXTUser = None, biscuits:list = None):
+        """--------------------
+        Deletes records from the table, with a required WHERE statement.
+
+        Note, some tables in the space and time network are immutable and cannot be changed.
+
+        Args: 
+            sql_text (str): If set, the sql_text is simply passed thru to the network directly as a DML request.
+            where (str): A WHERE statement to limit rows deleted. This defaults to a zero-delete statement, so must be overriden to execute a meaningful delete. 
+            user (SXTUser): User who will execute the request. Defaults to the default user.
+            biscuits (list): List of biscuits required to authorize this request. 
+
+        Returns: 
+            bool: Success flag, True if the data was fully inserted, False if any of the records failed.
+            object: Row output of the SQL request, in JSON format, or if error, details returned from the request.
+        """
         user = self.get_first_valid_user(user)
         if not biscuits: biscuits = list(self.biscuits) 
         if biscuits == []: 
@@ -762,6 +835,8 @@ if __name__ == '__main__':
         , Primary Key  (MyID) 
         )  
     """
+    print( tableA.get_column_names() )
+
     tableA.save()  # save to local file, to prevent lost keys
     success, results = tableA.create()  # Create table on Space and Time network
     

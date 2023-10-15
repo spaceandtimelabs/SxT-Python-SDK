@@ -9,6 +9,7 @@ class SXTBaseAPI():
     api_url = 'https://api.spaceandtime.app'
     access_token = ''
     logger: logging.Logger
+    network_calls_enabled:bool = True
     standard_headers = {
                     "accept": "application/json",
                     "content-type": "application/json"
@@ -165,7 +166,21 @@ class SXTBaseAPI():
                 case SXTApiCallTypes.DELETE : callfunc = requests.delete
                 case _: raise SxTArgumentError('Call type must be SXTApiCallTypes enum.', logger=self.logger)
 
-            response = callfunc(url=url, data=json.dumps(data_parms), headers=headers)
+            if self.network_calls_enabled:
+                response = callfunc(url=url, data=json.dumps(data_parms), headers=headers)
+            else:
+                if endpoint in ['sql','sql/dql']:
+                    rtn = [{'id':'1', 'str':'a','this_record':'is a test'}]
+                    rtn.append( {'id':'2', 'str':'b','this_record':'is a test'} )
+                    rtn.append( {'id':'3', 'str':'c','this_record':'is a test'} )
+                    return True, rtn
+                else:
+                    return True, {'authCode':'469867d9660b67f8aa12b2'
+                                ,'accessToken':'eyJ0eXBlIjoiYWNjZXNzIiwia2lkIjUxNDVkYmQtZGNmYi00ZjI4LTg3NzItZjVmNjNlMzcwM2JlIiwiYWxnIjoiRVMyNTYifQ.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MDAyLCJ0eXBlIjoiYWNjZXNzIiwidXNlciI6InN0ZXBoZW4iLCJzdWJzY3JpcHRpb24iOiIzMWNiMGI0Yi0xMjZlLTRlM2MtYTdhMS1lNWRmNDc4YTBjMDUiLCJzZXNzaW9uIjoiMzNiNGRhMzYxZjZiNTM3MjZlYmYyNzU4Iiwic3NuX2V4cCI6MTY5NzQ3OTkwMjMxNSwiaXRlcmF0aW9uIjoiNDEwY2YyZTgyYWZlODdmNDRiMzE4NDFiIn0.kpvrG-ro13P1YeMF6sjLh8wn1rO3jpCVeTrzhDe16ZmJu4ik1amcYz9uQff_XQcwBDrpnCeD5ZZ9mHqb_basew'
+                                ,'refreshToken':'eyJ0eXBlIjoicmVmcmVzaCIsImtpZCITQ1ZGJkLWRjZmItNGYyOC04NzcyLWY1ZjYzZTM3MDNiZSIsImFsZyI6IkVTMjU2In0.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MzAyLCJ0eXBlIjoicmVmcmVzaCIsInVzZXIiOiJzdGVwaGVuIiwic3Vic2NyaXB0aW9uIjoiMzFjYjBiNGItMTI2ZS00ZTNjLWE3YTEtZTVkZjQ3OGEwYzA1Iiwic2Vzc2lvbiI6IjMzYjRkYTM2MWY2YjUzNzI2ZWJmMjc1OCIsInNzbl9leHAiOjE2OTc0Nzk5MDIzMTUsIml0ZXJhdGlvbiI6IjQxMGNmMmU4MmFmZTg3ZjQ0YjMxODQxYiJ9.3vVYpTGBjXIejlaacaZOh_59O9ETfbvTCWvldoi0ojyXTRkTmENVpQRbw7av7yMM2jA7SRdEPQGGjYmThCfk9w'
+                                ,'accessTokenExpires':1973950023160
+                                ,'refreshTokenExpires':1973953023160
+                                }
             txt = 'response.text not available'
             txt = response.text
             response.raise_for_status()
@@ -455,7 +470,6 @@ class SXTBaseAPI():
             resources (list): List of Resources ("schema.table_name") in the sql_text. 
             biscuits (list): (optional) List of biscuit tokens for permissioned tables. If only querying public tables, this is not needed.
             app_name (str): (optional) Name that will appear in querylog, used for bucketing workload.
-
 
         Returns:
             bool: Success flag (True/False) indicating the api call worked as expected.
