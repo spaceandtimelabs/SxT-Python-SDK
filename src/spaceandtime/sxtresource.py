@@ -449,7 +449,8 @@ class SXTResource():
                                             or l.startswith('WITH=')
                                             or l.startswith('WITH_STATEMENT=')
                                             or l.startswith('RESOURCE_TYPE=') 
-                                            or l.startswith('RESOURCE_PUBLIC_KEY=')  )]
+                                            or l.startswith('RESOURCE_PUBLIC_KEY=') 
+                                            or l.startswith('CREATE_DDL=')  )]
                 
             # loop thru and build dict to control load
             loadmap = {}
@@ -514,7 +515,7 @@ class SXTResource():
                                   func_line_formatter=line_formatter, 
                                   func_biscuit_formatter=biscuit_formatter, 
                                   func_sql_formatter=sql_formatter,
-                                  include_keys=[p for p in self.__allprops__ if p not in ['with','with_statement']]))
+                                  include_keys=[p for p in self.__allprops__ if p not in ['with','with_statement','create_ddl']]))
         lines.insert(0, f'# -- Resource File for  {self.resource_name}')
         lines.insert(1, f'# -- this file can be executed as a shell script to set environment variables')
         for i, line in enumerate(lines):
