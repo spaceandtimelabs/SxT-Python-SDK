@@ -35,8 +35,8 @@ class SpaceAndTime:
                 self.logger.addHandler( logging.StreamHandler() )
         if application_name: self.application_name = application_name
         self.logger.info('-'*30 + f'\nSpace and Time SDK initiated for {self.application_name}')
-        self.user = SXTUser(logger=self.logger)
-        self.key_manager = SXTKeyManager()
+        self.user = SXTUser(dotenv_file=envfile_path, api_url=api_url, user_id=user_id, user_private_key=user_private_key, logger=self.logger)
+        self.key_manager = self.user.key_manager
         return None 
     
     @property
