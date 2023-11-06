@@ -22,8 +22,11 @@ class SXTBiscuit():
     __lastresource: str = ''
     __manualtoken:bool = False
     __parentbiscuit__:bool = False
+    __defaultresource__:str = ''
     
-    def __init__(self, name:str = '', private_key: str = None, new_keypair: bool = False, from_file: Path = None, logger:logging.Logger = None, biscuit_token:str = None) -> None:
+    def __init__(self, name:str = '', private_key: str = None, new_keypair: bool = False, 
+                 from_file: Path = None, logger:logging.Logger = None, 
+                 biscuit_token:str = None, default_resource:str = None) -> None:
         if logger: 
             self.logger = logger 
         else: 
@@ -37,6 +40,7 @@ class SXTBiscuit():
         if private_key: self.private_key = private_key
         self.__cap = {}
         if name: self.name = name 
+        if default_resource: self.__defaultresource__ = default_resource
         if from_file and Path(from_file).exists: self.load(from_file)
         if biscuit_token: 
             self.__manualtoken = True 
@@ -95,6 +99,16 @@ class SXTBiscuit():
     @encoding.setter
     def encoding(self, value):
         self.key_manager.encoding = value     
+
+    @property
+    def default_resource(self) ->str: 
+        return str(self.__defaultresource__)
+    @default_resource.setter
+    def default_resource(self, value):
+        if type(value)==str: 
+            self.__defaultresource__ = value
+        else:
+            raise ValueError('default_resource must be set to a string.')
 
 
     def new_keypair(self) -> dict:
@@ -162,6 +176,9 @@ class SXTBiscuit():
             >>> bb.add_capability("Schema.TableA", "INSERT")
             False
         """
+        if not resource: resource = self.__defaultresource__
+        if not resource: resource = self.__lastresource
+        if not resource: raise KeyError('must define a resource (schema.object) on which to assign permissions')
         self.__lastresource = resource
         if resource not in self.__cap: self.__cap[resource] = []
         if 'ALL' in self.__cap[resource] or '*' in self.__cap[resource]:

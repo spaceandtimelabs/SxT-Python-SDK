@@ -1,9 +1,10 @@
 import os, logging, datetime 
+from pathlib import Path
+from dotenv import load_dotenv
 from .sxtexceptions import SxTAuthenticationError, SxTArgumentError
 from .sxtkeymanager import SXTKeyManager, SXTKeyEncodings
 from .sxtbaseapi import SXTBaseAPI, SXTApiCallTypes 
-from pathlib import Path
-from dotenv import load_dotenv
+
 
 class SXTUser():
     user_id: str = ''
@@ -21,20 +22,30 @@ class SXTUser():
     __bs: list = None
     __usrtyp__:list = None
 
-    def __init__(self, dotenv_file:Path = None, user_id:str = None, user_private_key:str = None, 
-                 encoding:SXTKeyEncodings = None, authenticate:bool = False, logger:logging.Logger = None) -> None:
+    def __init__(self, dotenv_file:Path = None, user_id:str = None, 
+                 user_private_key:str = None, api_url:str = None,
+                 encoding:SXTKeyEncodings = None, authenticate:bool = False, 
+                 application_name:str = None,
+                 logger:logging.Logger = None, SpaceAndTime_parent:object = None) -> None:
+        
+        # start with parent import
+        if SpaceAndTime_parent:
+            if not application_name: self.application_name = SpaceAndTime_parent.application_name
+            if not logger: logger = SpaceAndTime_parent.logger
+            self.start_time = SpaceAndTime_parent.start_time if SpaceAndTime_parent.start_time else datetime.datetime.now()
+
         if logger: 
             self.logger = logger 
         else: 
             self.logger = logging.getLogger()
-            self.logger.setLevel(logging.DEBUG)
+            self.logger.setLevel(logging.INFO)
             if len(self.logger.handlers) == 0: 
                 self.logger.addHandler( logging.StreamHandler() )
-        self.logger.info('-'*30 + '\nNew SXT User initiated')
+        self.logger.debug(f'SXT User instantiating...')
+
         encoding = encoding if encoding else SXTKeyEncodings.BASE64 
         self.key_manager = SXTKeyManager(private_key = user_private_key, encoding = encoding, logger=self.logger)
         self.base_api = SXTBaseAPI(logger = self.logger)
-        self.start_time = datetime.datetime.now()
         self.__bs = []
         self.__usrtyp__ = {'type':'', 'timeout':datetime.datetime.now()}
 
@@ -42,12 +53,12 @@ class SXTUser():
         dotenv_file = Path('./.env') if not dotenv_file and Path('./.env').resolve().exists() else dotenv_file
         if dotenv_file: self.load(dotenv_file)
 
-        # overwrite userid and private key (and public key, by extension), if supplied
+        # overwrite userid, api_url, and private key (and public key, by extension), if supplied
         if user_private_key: self.private_key = user_private_key
         if user_id: self.user_id = user_id
+        if api_url: self.api_url = api_url
 
-        self.logger.info(f'SXTUser user Created: \n{ self }')
-
+        self.logger.info(f'SXT User instantiated: {self.user_id}')
         if authenticate: self.authenticate()
 
 

@@ -4,7 +4,12 @@ __pycache__/
 *$py.class
 resources/
 users/
-tests/
+skip/
+tests/tables
+tests/views
+projects/
+logs/
+build_biscuit-python/
 publish.sh
 
 # C extensions
