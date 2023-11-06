@@ -46,7 +46,7 @@ class SpaceAndTime:
         self.default_local_folder = default_local_folder if default_local_folder else Path('.').resolve()
         self.envfile_filepath = envfile_filepath if envfile_filepath else self.default_local_folder
 
-        self.user = SXTUser(dotenv_file=envfile_path, api_url=api_url, user_id=user_id, user_private_key=user_private_key, logger=self.logger)
+        self.user = SXTUser(dotenv_file=envfile_filepath, api_url=api_url, user_id=user_id, user_private_key=user_private_key, logger=self.logger)
         self.key_manager = self.user.key_manager
         return None 
     
