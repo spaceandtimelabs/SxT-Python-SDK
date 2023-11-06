@@ -13,6 +13,9 @@ class SpaceAndTime:
     application_name: str = 'SxT-SDK'
     network_calls_enabled:bool = True
     discovery = None
+    default_local_folder:str = None
+    envfile_filepath:str = None
+    start_time: datetime = None
     key_manager: SXTKeyManager = None
     GRANT = SXTPermission
     ENCODINGS = SXTKeyEncodings
@@ -22,9 +25,11 @@ class SpaceAndTime:
     DISCOVERY_SCOPE = SXTDiscoveryScope
 
 
-    def __init__(self, envfile_path=None, api_url=None, 
-                user_id=None, user_private_key=None,
-                application_name='SxT-SDK', logger: logging.Logger = None):
+    def __init__(self, envfile_filepath=None, api_url=None, 
+                user_id=None, user_private_key=None, 
+                default_local_folder:str = None,
+                application_name='SxT-SDK', 
+                logger: logging.Logger = None):
         """Create new instance of Space and Time SDK for Python"""
         if logger: 
             self.logger = logger 
@@ -33,10 +38,16 @@ class SpaceAndTime:
             self.logger.setLevel(logging.INFO)
             if len(self.logger.handlers) == 0: 
                 self.logger.addHandler( logging.StreamHandler() )
+
+        self.start_time = datetime.now()
+        self.logger.info('-'*30 + f'\nSpace and Time SDK initiated for {self.application_name} at {self.start_time.strftime("%Y-%m-%d %H:%M:%S")}')
+
         if application_name: self.application_name = application_name
-        self.logger.info('-'*30 + f'\nSpace and Time SDK initiated for {self.application_name}')
-        self.user = SXTUser(logger=self.logger)
+        self.default_local_folder = default_local_folder if default_local_folder else Path('.').resolve()
+        self.envfile_filepath = envfile_filepath if envfile_filepath else self.default_local_folder
+
         self.key_manager = SXTKeyManager()
+        self.user = SXTUser(dotenv_file=self.envfile_filepath, logger=self.logger)
         return None 
     
     @property
@@ -221,9 +232,9 @@ class SpaceAndTime:
         if not user: user = self.user
         if not scope: scope = SXTDiscoveryScope.ALL
         success, response = user.base_api.discovery_get_tables(scope=scope.name, schema=schema, search_pattern=search_pattern)  
-        if success and return_as in [list, str]: response = sorted([ f"{r['namespace']}.{r['table']}" for r in response])
+        if success and return_as in [list, str]: response = sorted([ f"{r['schema']}.{r['table']}" for r in response])
         if success and return_as == str: response = ', '.join(response)
-        if success and return_as == json: response = {f"{r['namespace']}.{r['table']}":r for r in response}
+        if success and return_as == json: response = {f"{r['schema']}.{r['table']}":r for r in response}
         if success and return_as not in [json, dict, list, str]:
             self.logger.warning('Supplied an unsupported return type, only [json, list, str] currently supported. Defaulting to dict.')
         return success, response

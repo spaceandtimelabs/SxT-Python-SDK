@@ -390,7 +390,7 @@ class SXTBaseAPI():
         headers = { 'originApp': app_name } if app_name else {}
         sql_text = self.prep_sql(sql_text=sql_text)
         biscuit_tokens = self.prep_biscuits(biscuits)
-        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.", logging= self.logging)
+        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.",  logger = self.logger)
         dataparms = {"sqlText": sql_text
                     ,"biscuits": biscuit_tokens
                     ,"validate": str(validate).lower() }
@@ -418,7 +418,7 @@ class SXTBaseAPI():
         headers = { 'originApp': app_name } if app_name else {}
         sql_text = self.prep_sql(sql_text=sql_text)
         biscuit_tokens = self.prep_biscuits(biscuits)
-        if biscuit_tokens==[]:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a single or list of string biscuit_tokens or SXTBiscuit objects.", logging= self.logging)
+        if biscuit_tokens==[]:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a single or list of string biscuit_tokens or SXTBiscuit objects.", logger = self.logger)
         dataparms = {"sqlText": sql_text
                     ,"biscuits": biscuit_tokens }
                     # ,"resources": [r for r in resources] }
@@ -448,7 +448,7 @@ class SXTBaseAPI():
         headers = { 'originApp': app_name } if app_name else {}
         sql_text = self.prep_sql(sql_text=sql_text)
         biscuit_tokens = self.prep_biscuits(biscuits)
-        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.", logging= self.logging)
+        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.",  logger = self.logger)
         headers = { 'originApp': app_name } if app_name else {}
         dataparms = {"sqlText": sql_text
                     ,"biscuits": biscuit_tokens
@@ -479,7 +479,7 @@ class SXTBaseAPI():
         headers = { 'originApp': app_name } if app_name else {}
         sql_text = self.prep_sql(sql_text=sql_text)
         biscuit_tokens = self.prep_biscuits(biscuits)
-        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.", logging= self.logging)
+        if type(biscuit_tokens) != list:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a list of biscuit_tokens or SXTBiscuit objects.",  logger = self.logger)
         dataparms = {"sqlText": sql_text
                     ,"biscuits": biscuit_tokens
                     ,"resources": [r for r in resources] }

@@ -40,3 +40,12 @@ class SxTAuthenticationError(Exception):
     def __init__(self, *args: object, **kwargs) -> None:
         log_if_logger(*args, **kwargs)
         super().__init__(*args)
+
+
+class SxTExceptions():
+    SxTAuthenticationError = SxTAuthenticationError
+    SxTQueryError = SxTQueryError
+    SxTFileContentError = SxTFileContentError
+    SxTArgumentError = SxTArgumentError
+    SxTKeyEncodingError = SxTKeyEncodingError
+    SxTBiscuitError = SxTBiscuitError
