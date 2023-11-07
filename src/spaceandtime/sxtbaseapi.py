@@ -375,7 +375,7 @@ class SXTBaseAPI():
         This api call undergoes one additional SQL parse step to interrogate the type and 
         affected tables / views, so is slightly less performant (by 50-100ms) than the type-specific 
         api calls, sql_ddl, sql_dml, sql_dql.  Normal human interaction will not be noticed, but
-        if tuning for high-performnace applications, consider using the correct typed call.
+        if tuning for high-performance applications, consider using the correct typed call.
 
         Args:        
             sql_text (str): SQL query text to execute. Note, there is NO placeholder replacement.
