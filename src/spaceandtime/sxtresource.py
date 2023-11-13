@@ -919,7 +919,7 @@ class SXTTable(SXTResource):
         self.logger.info(f'DELETING: {sql_text}')
         success, results = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name, resources=[self.table_name])
         time.sleep(1)
-        if not success: self.__rc__.__lasterr__ = self.__rc__.SXTExceptions.SxTQueryError(results)
+        if not success: self.__lasterr__ = self.SXTExceptions.SxTQueryError(results)
         return success, results
 
     
