@@ -1,7 +1,7 @@
 import requests, logging, json
 from pathlib import Path
 from .sxtenums import SXTApiCallTypes
-from .sxtexceptions import SxTArgumentError
+from .sxtexceptions import SxTArgumentError, SxTAPINotDefinedError
 from .sxtbiscuits import SXTBiscuit
 
 
@@ -15,6 +15,7 @@ class SXTBaseAPI():
                     "content-type": "application/json"
                     }
     versions = {}
+    APICALLTYPE = SXTApiCallTypes
 
 
     def __init__(self, access_token:str = '', logger:logging.Logger = None) -> None:
@@ -135,7 +136,27 @@ class SXTBaseAPI():
             bool: Indicating request success
             json: Result of the API, expressed as a JSON object 
         """
+        # Set these early, in case of timeout and they're not set by callfunc 
+        txt = 'response.text not available - are you sure you have the correct API Endpoint?' 
+        statuscode = 555
+        response = {}
+
+        # if network calls turned off, return fake data
+        if not self.network_calls_enabled: return True, self.__fakedata__(endpoint)
+
+        # internal function to simplify and unify error handling
+        def __handle_errors__(txt, ex, statuscode, responseobject, loggerobject):
+            loggerobject.error(txt)
+            rtn = {'text':txt}
+            rtn['error'] = str(ex)
+            rtn['status_code'] = statuscode 
+            rtn['response_object'] = responseobject
+            return False, rtn
+
+        # otherwise, go get real data
         try:
+            if endpoint not in self.versions.keys(): 
+                raise SxTAPINotDefinedError("Endpoint not defined in API Lookup (apiversions.json). Please reach out to Space and Time for assistance. \nAs a work-around, you can try manually adding the endpoint to the SXTBaseAPI.versions dictionary.")
             version = self.versions[endpoint]
             self.logger.debug(f'API Call started for endpoint: {version}/{endpoint}')
 
@@ -145,14 +166,14 @@ class SXTBaseAPI():
            
             # Path parms
             for name, value in path_parms.items():
-                endpoint = endpoint.replace(name,value)
+                endpoint = endpoint.replace(f'{{{name}}}', value)
             
             # Query parms
             if query_parms !={}: 
                 endpoint = f'{endpoint}?' + '&'.join([f'{n}={v}' for n,v in query_parms.items()])
             
             # Header parms
-            headers = {k:v for k,v in self.standard_headers.items()}
+            headers = {k:v for k,v in self.standard_headers.items()} # get new object
             if auth_header: headers['authorization'] = f'Bearer {self.access_token}'
             headers.update(header_parms)
 
@@ -166,39 +187,42 @@ class SXTBaseAPI():
                 case SXTApiCallTypes.DELETE : callfunc = requests.delete
                 case _: raise SxTArgumentError('Call type must be SXTApiCallTypes enum.', logger=self.logger)
 
-            if self.network_calls_enabled:
-                response = callfunc(url=url, data=json.dumps(data_parms), headers=headers)
-            else:
-                if endpoint in ['sql','sql/dql']:
-                    rtn = [{'id':'1', 'str':'a','this_record':'is a test'}]
-                    rtn.append( {'id':'2', 'str':'b','this_record':'is a test'} )
-                    rtn.append( {'id':'3', 'str':'c','this_record':'is a test'} )
-                    return True, rtn
-                else:
-                    return True, {'authCode':'469867d9660b67f8aa12b2'
-                                ,'accessToken':'eyJ0eXBlIjoiYWNjZXNzIiwia2lkIjUxNDVkYmQtZGNmYi00ZjI4LTg3NzItZjVmNjNlMzcwM2JlIiwiYWxnIjoiRVMyNTYifQ.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MDAyLCJ0eXBlIjoiYWNjZXNzIiwidXNlciI6InN0ZXBoZW4iLCJzdWJzY3JpcHRpb24iOiIzMWNiMGI0Yi0xMjZlLTRlM2MtYTdhMS1lNWRmNDc4YTBjMDUiLCJzZXNzaW9uIjoiMzNiNGRhMzYxZjZiNTM3MjZlYmYyNzU4Iiwic3NuX2V4cCI6MTY5NzQ3OTkwMjMxNSwiaXRlcmF0aW9uIjoiNDEwY2YyZTgyYWZlODdmNDRiMzE4NDFiIn0.kpvrG-ro13P1YeMF6sjLh8wn1rO3jpCVeTrzhDe16ZmJu4ik1amcYz9uQff_XQcwBDrpnCeD5ZZ9mHqb_basew'
-                                ,'refreshToken':'eyJ0eXBlIjoicmVmcmVzaCIsImtpZCITQ1ZGJkLWRjZmItNGYyOC04NzcyLWY1ZjYzZTM3MDNiZSIsImFsZyI6IkVTMjU2In0.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MzAyLCJ0eXBlIjoicmVmcmVzaCIsInVzZXIiOiJzdGVwaGVuIiwic3Vic2NyaXB0aW9uIjoiMzFjYjBiNGItMTI2ZS00ZTNjLWE3YTEtZTVkZjQ3OGEwYzA1Iiwic2Vzc2lvbiI6IjMzYjRkYTM2MWY2YjUzNzI2ZWJmMjc1OCIsInNzbl9leHAiOjE2OTc0Nzk5MDIzMTUsIml0ZXJhdGlvbiI6IjQxMGNmMmU4MmFmZTg3ZjQ0YjMxODQxYiJ9.3vVYpTGBjXIejlaacaZOh_59O9ETfbvTCWvldoi0ojyXTRkTmENVpQRbw7av7yMM2jA7SRdEPQGGjYmThCfk9w'
-                                ,'accessTokenExpires':1973950023160
-                                ,'refreshTokenExpires':1973953023160
-                                }
-            txt = 'response.text not available'
+            # Call API function as defined above
+            response = callfunc(url=url, data=json.dumps(data_parms), headers=headers)
             txt = response.text
+            statuscode = response.status_code
             response.raise_for_status()
 
             try:
+                self.logger.debug('API return content type: ' + response.headers.get('content-type','') )
                 rtn = response.json()
             except json.decoder.JSONDecodeError as ex:
-                rtn = {'status_code':response.status_code, 'text':txt}
+                rtn = {'text':txt, 'status_code':statuscode}
 
             self.logger.debug(f'API call completed for endpoint: "{endpoint}" with result: {txt}')
             return True, rtn
 
         except requests.exceptions.RequestException as ex:
-            self.logger.error(str(txt))
-            return False, {'status':response.status_code, 'error': txt}
+            return __handle_errors__(txt, ex, statuscode, response, self.logger)
+        except SxTAPINotDefinedError as ex:
+            return __handle_errors__(txt, ex, statuscode, response, self.logger)
         except Exception as ex:
-            self.logger.error(str(txt))
-            return False, {'status':response.status_code, 'error': txt}
+            return __handle_errors__(txt, ex, statuscode, response, self.logger)        
+        
+
+    def __fakedata__(self, endpoint:str):
+        if endpoint in ['sql','sql/dql']:
+            rtn = [{'id':'1', 'str':'a','this_record':'is a test'}]
+            rtn.append( {'id':'2', 'str':'b','this_record':'is a test'} )
+            rtn.append( {'id':'3', 'str':'c','this_record':'is a test'} )
+            return rtn
+        else:
+            return {'authCode':'469867d9660b67f8aa12b2'
+                        ,'accessToken':'eyJ0eXBlIjoiYWNjZXNzIiwia2lkIjUxNDVkYmQtZGNmYi00ZjI4LTg3NzItZjVmNjNlMzcwM2JlIiwiYWxnIjoiRVMyNTYifQ.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MDAyLCJ0eXBlIjoiYWNjZXNzIiwidXNlciI6InN0ZXBoZW4iLCJzdWJzY3JpcHRpb24iOiIzMWNiMGI0Yi0xMjZlLTRlM2MtYTdhMS1lNWRmNDc4YTBjMDUiLCJzZXNzaW9uIjoiMzNiNGRhMzYxZjZiNTM3MjZlYmYyNzU4Iiwic3NuX2V4cCI6MTY5NzQ3OTkwMjMxNSwiaXRlcmF0aW9uIjoiNDEwY2YyZTgyYWZlODdmNDRiMzE4NDFiIn0.kpvrG-ro13P1YeMF6sjLh8wn1rO3jpCVeTrzhDe16ZmJu4ik1amcYz9uQff_XQcwBDrpnCeD5ZZ9mHqb_basew'
+                        ,'refreshToken':'eyJ0eXBlIjoicmVmcmVzaCIsImtpZCITQ1ZGJkLWRjZmItNGYyOC04NzcyLWY1ZjYzZTM3MDNiZSIsImFsZyI6IkVTMjU2In0.eyJpYXQiOjE2OTczOTM1MDIsIm5iZiI6MTY5NzM5MzUwMiwiZXhwIjoxNjk3Mzk1MzAyLCJ0eXBlIjoicmVmcmVzaCIsInVzZXIiOiJzdGVwaGVuIiwic3Vic2NyaXB0aW9uIjoiMzFjYjBiNGItMTI2ZS00ZTNjLWE3YTEtZTVkZjQ3OGEwYzA1Iiwic2Vzc2lvbiI6IjMzYjRkYTM2MWY2YjUzNzI2ZWJmMjc1OCIsInNzbl9leHAiOjE2OTc0Nzk5MDIzMTUsIml0ZXJhdGlvbiI6IjQxMGNmMmU4MmFmZTg3ZjQ0YjMxODQxYiJ9.3vVYpTGBjXIejlaacaZOh_59O9ETfbvTCWvldoi0ojyXTRkTmENVpQRbw7av7yMM2jA7SRdEPQGGjYmThCfk9w'
+                        ,'accessTokenExpires':1973950023160
+                        ,'refreshTokenExpires':1973953023160
+                        }
 
 
     def get_auth_challenge_token(self, user_id:str, prefix:str = None, joincode:str = None):
@@ -237,25 +261,34 @@ class SXTBaseAPI():
         return success, rtn if success else [rtn]
 
 
-    def get_access_token(self, user_id:str, public_key:str, challange_token:str, signed_challange_token:str, scheme:str = "ed25519"):
+    def get_access_token(self, user_id:str, challange_token:str, signed_challange_token:str='', public_key:str=None, keymanager:object=None, scheme:str = "ed25519"):
         """--------------------
-        (alias) Calls and returns data from API: auth/token, which validates signed challenge token and provides new Access_Token and Refresh_Token.        
+        (alias) Calls and returns data from API: auth/token, which validates signed challenge token and provides new Access_Token and Refresh_Token. 
+        Can optionally supply a keymanager object, instead of the public_key and signed_challenge_token.        
         
         Returns:
             bool: Success flag (True/False) indicating the api call worked as expected.
             object: Response information from the Space and Time network, as list or dict(json). 
         """
-        return self.auth_token(user_id, public_key, challange_token, signed_challange_token, scheme)
+        return self.auth_token(user_id, challange_token, signed_challange_token, public_key, keymanager, scheme)
 
 
-    def auth_token(self, user_id:str, public_key:str, challange_token:str, signed_challange_token:str, scheme:str = "ed25519"):
+    def auth_token(self, user_id:str, challange_token:str, signed_challange_token:str='', public_key:str=None, keymanager:object=None, scheme:str = "ed25519"):
         """--------------------
-        Calls and returns data from API: auth/token, which validates signed challenge token and provides new Access_Token and Refresh_Token.        
+        Calls and returns data from API: auth/token, which validates signed challenge token and provides new Access_Token and Refresh_Token. 
+        Can optionally supply a keymanager object, instead of the public_key and signed_challenge_token. 
         
         Returns:
             bool: Success flag (True/False) indicating the api call worked as expected.
             object: Response information from the Space and Time network, as list or dict(json). 
         """
+        if keymanager: 
+            try:
+                public_key = keymanager.public_key_to(keymanager.ENCODINGS.BASE64)
+                signed_challange_token = keymanager.sign_message(challange_token)
+            except Exception as ex:
+                return False, {'error':'keymanager object must be of type SXTKeyManager, if supplied.'}
+
         dataparms = { "userId": user_id
                      ,"signature": signed_challange_token
                      ,"authCode": challange_token
@@ -498,7 +531,7 @@ class SXTBaseAPI():
 
         Returns:
             bool: Success flag (True/False) indicating the api call worked as expected.
-            object: Response information from the Space and Time network, as list or dict(json). 
+            object: Response information from the Space and Time network, as list of dict. 
         """
         success, rtn = self.call_api('discover/schema',True, SXTApiCallTypes.GET, query_parms={'scope':scope})
         return success, (rtn if success else [rtn]) 
@@ -517,7 +550,7 @@ class SXTBaseAPI():
 
         Returns:
             bool: Success flag (True/False) indicating the api call worked as expected.
-            object: Response information from the Space and Time network, as list or dict(json). 
+            object: Response information from the Space and Time network, as list of dict. 
         """
         version = 'v2' if 'discover/table' not in list(self.versions.keys()) else self.versions['discover/table'] 
         schema_or_namespace = 'namespace' if version=='v1' else 'schema'
@@ -525,7 +558,51 @@ class SXTBaseAPI():
         if version != 'v1' and search_pattern: query_parms['searchPattern'] = search_pattern
         success, rtn = self.call_api('discover/table',True,  SXTApiCallTypes.GET, query_parms=query_parms)
         return success, (rtn if success else [rtn]) 
-     
+
+
+    def discovery_get_views(self, schema:str = 'ETHEREUM', scope:str = 'ALL', search_pattern:str = None):
+        """--------------------
+        Connects to the Space and Time network and returns all available tables within a schema.
+
+        Calls and returns data from API: discover/table         
+        
+        Args:
+            schema (str): Schema name to search for tables.
+            scope (SXTDiscoveryScope): (optional) Scope of objects to return: All, Public, Subscription, or Private. Defaults to SXTDiscoveryScope.ALL.
+            search_pattern (str): (optional) Tablename pattern to match for inclusion into result set. Defaults to None / all tables.
+
+        Returns:
+            bool: Success flag (True/False) indicating the api call worked as expected.
+            object: Response information from the Space and Time network, as list of dict. 
+        """
+        version = 'v2' if 'discover/view' not in list(self.versions.keys()) else self.versions['discover/view'] 
+        query_parms = {'scope':scope.upper(), 'schema':schema.upper()}
+        if version != 'v1' and search_pattern: query_parms['searchPattern'] = search_pattern
+        success, rtn = self.call_api('discover/view',True,  SXTApiCallTypes.GET, query_parms=query_parms)
+        return success, (rtn if success else [rtn]) 
+
+
+    def discovery_get_columns(self, schema:str, table:str):
+        """--------------------
+        Connects to the Space and Time network and returns all available columns within a table.
+
+        Calls and returns data from API: discover/table         
+        
+        Args:
+            schema (str): Schema name for which to retrieve tables.
+            table (str): Table name for which to retrieve columns.  This should be tablename only, NOT schema.tablename.
+
+        Returns:
+            bool: Success flag (True/False) indicating the api call worked as expected.
+            object: Response information from the Space and Time network, as list of dict. 
+        """
+        version = 'v2' if 'discover/table/column' not in list(self.versions.keys()) else self.versions['discover/table/column'] 
+        schema_or_namespace = 'namespace' if version=='v1' else 'schema'
+        query_parms = {schema_or_namespace:schema.upper(), 'table':table}
+        success, rtn = self.call_api('discover/table/column',True,  SXTApiCallTypes.GET, query_parms=query_parms)
+        return success, (rtn if success else [rtn]) 
+    
+
 
     def subscription_get_info(self):
         """--------------------
