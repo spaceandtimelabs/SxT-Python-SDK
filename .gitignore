@@ -3,14 +3,19 @@ __pycache__/
 *.py[cod]
 *$py.class
 resources/
+tables/
 users/
 skip/
+old/
 tests/tables
 tests/views
 projects/
 logs/
 build_biscuit-python/
 publish.sh
+.env_crm
+backup*
+latest_test_log.txt
 
 # C extensions
 *.so

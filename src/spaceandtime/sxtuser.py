@@ -246,7 +246,10 @@ class SXTUser():
             if success:
                 challenge_token = response['authCode']
                 signed_challenge_token = self.key_manager.sign_message(challenge_token)
-                success, response = self.base_api.get_access_token(self.user_id, self.public_key, challenge_token, signed_challenge_token)
+                success, response = self.base_api.get_access_token(user_id = self.user_id, 
+                                                                   challange_token = challenge_token, 
+                                                                   signed_challange_token = signed_challenge_token,
+                                                                   public_key = self.public_key)
             if success:
                 tokens = response
             else: 

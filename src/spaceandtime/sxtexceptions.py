@@ -41,6 +41,11 @@ class SxTAuthenticationError(Exception):
         log_if_logger(*args, **kwargs)
         super().__init__(*args)
 
+class SxTAPINotDefinedError(Exception):
+    def __init__(self, *args: object, **kwargs) -> None:
+        log_if_logger(*args, **kwargs)
+        super().__init__(*args)
+
 
 class SxTExceptions():
     SxTAuthenticationError = SxTAuthenticationError
@@ -49,3 +54,4 @@ class SxTExceptions():
     SxTArgumentError = SxTArgumentError
     SxTKeyEncodingError = SxTKeyEncodingError
     SxTBiscuitError = SxTBiscuitError
+    SxTAPINotDefinedError = SxTAPINotDefinedError
