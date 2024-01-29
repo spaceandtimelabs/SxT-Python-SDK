@@ -10,7 +10,7 @@ version = "1.1.18"
 description = "SDK for Space and Time verifiable database"
 authors = [{ name = "Stephen Hilton", email = "stephen.hilton@spaceandtime.io" }]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 classifiers = [
     "License :: OSI Approved :: MIT License",
