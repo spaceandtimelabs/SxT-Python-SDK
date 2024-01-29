@@ -16,6 +16,7 @@ publish.sh
 .env_crm
 backup*
 latest_test_log.txt
+venv_*
 
 # C extensions
 *.so
