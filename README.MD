@@ -185,8 +185,7 @@ There are helper functions to assist quickly adding, removing, and selecting dat
 from pprint import pprint # for better viewing of data
 
 # generate some dummy data
-cols = ['MyID','MyName','MyDate']
-data = [[i, chr(64+i), f'2023-09-0{i}'] for i in list(range(1,10))]
+data = [{'MyID':i, 'MyName':chr(64+i), 'MyDate':f'2023-09-0{i}'} for i in list(range(1,10))]
 
 # insert into the table
 tableA.insert.with_list_of_dicts(data)
