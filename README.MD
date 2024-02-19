@@ -189,7 +189,7 @@ cols = ['MyID','MyName','MyDate']
 data = [[i, chr(64+i), f'2023-09-0{i}'] for i in list(range(1,10))]
 
 # insert into the table
-tableA.insert(columns=cols, data=data)
+tableA.insert.with_list_of_dicts(data)
 
 # select out again, just for fun
 success, rows = tableA.select()
