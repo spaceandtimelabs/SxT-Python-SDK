@@ -271,7 +271,7 @@ class SXTBiscuit():
         Saves biscuit information to a json file.
 
         The filepath will accept three different placholder texts: {resource}, {date}, and {time}.  
-        This allows caller to easily create dynamically named biscuit files, reducing the likelyhood of 
+        This allows caller to easily create dynamically named biscuit files, reducing the likelihood of 
         overwriting biscuit files and thus losing keys.   It is best practice to leave overwrite to False
         and use placeholders to save different files, removing older save files only after validation
         the keys are not needed anymore.  
@@ -308,7 +308,7 @@ class SXTBiscuit():
 
         The filepath will accept three different placholder texts: {resource}, {date}, and {time}.  
         This allows caller to easily create (and load) dynamically named biscuit files, reducing the 
-        likelyhood of overwriting biscuit files and thus losing keys.  It is best practice to leave 
+        likelihood of overwriting biscuit files and thus losing keys.  It is best practice to leave 
         overwrite to False and use placeholders to save different files, removing older save files 
         only after validation the keys are not needed anymore.
 

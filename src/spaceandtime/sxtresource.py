@@ -300,7 +300,7 @@ class SXTResource():
 
     def to_json(self, obscure_private_key:bool = True, omit_keys:list = []) -> json:
         """--------------------
-        Returns a json document containing relevent information from the Resource object.
+        Returns a json document containing relevant information from the Resource object.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys.
@@ -314,14 +314,14 @@ class SXTResource():
 
     def to_dict(self, obscure_private_key:bool = True, include_keys:list = []) -> dict:
         """--------------------
-        Returns a dictionary object containing relevent information from the Resource object.
+        Returns a dictionary object containing relevant information from the Resource object.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys.
             include_keys (list): List of key names to include in the return.  Defaults to all keys.
             
         Returns:
-            dict: Curated dictionary of relevent values in the class.
+            dict: Curated dictionary of relevant values in the class.
         """
         if include_keys ==[]: include_keys = self.__allprops__
         rtn = {}
@@ -355,7 +355,7 @@ class SXTResource():
                 func_biscuit_formatter = lambda n,v: f'{n}_biscuit_token={v}',
                 func_sql_formatter = lambda n,v: f'{n}\n:{v}') -> list:
         """------------------
-        Returns a list object containing relevent information from the Resource object, with name/value formatted to one line.
+        Returns a list object containing relevant information from the Resource object, with name/value formatted to one line.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys
@@ -787,7 +787,7 @@ class SXTTable(SXTResource):
         
         Useful when an iterable list of columns (and types) is required, such as building 
         INSERT statements or view SELECT lists.  Order should be preserved, although as a dict 
-        object type, this is technically not gauranteed.
+        object type, this is technically not guaranteed.
         """
         rtn = {}
 
@@ -896,7 +896,7 @@ class SXTTable(SXTResource):
 
         Args: 
             sql_text (str): If set, the sql_text is simply passed thru to the network directly as a DML request.
-            where (str): A WHERE statement to limit rows deleted. This defaults to a zero-delete statement, so must be overriden to execute a meaningful delete. 
+            where (str): A WHERE statement to limit rows deleted. This defaults to a zero-delete statement, so must be overridden to execute a meaningful delete. 
             user (SXTUser): User who will execute the request. Defaults to the default user.
             biscuits (list): List of biscuits required to authorize this request. 
 
