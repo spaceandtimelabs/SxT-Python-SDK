@@ -1,4 +1,6 @@
 import logging, random, time, json
+import pandas as pd 
+from io import StringIO
 from datetime import datetime
 from pathlib import Path
 from .sxtuser import SXTUser
@@ -12,7 +14,6 @@ class SpaceAndTime:
     user: SXTUser = None 
     application_name: str = 'SxT-SDK'
     network_calls_enabled:bool = True
-    discovery = None
     default_local_folder:str = None
     envfile_filepath:str = None
     start_time: datetime = None
@@ -36,8 +37,11 @@ class SpaceAndTime:
         else: 
             self.logger = logging.getLogger()
             self.logger.setLevel(logging.INFO)
+            frmt = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s','%Y-%m-%d_%H:%M:%S')
+            self.logger.sxtformat = frmt
             if len(self.logger.handlers) == 0: 
                 self.logger.addHandler( logging.StreamHandler() )
+                self.logger.handlers[0].formatter = frmt 
 
         self.start_time = datetime.now()
         self.logger.info('-'*30 + f'\nSpace and Time SDK initiated for {self.application_name} at {self.start_time.strftime("%Y-%m-%d %H:%M:%S")}')
@@ -58,6 +62,14 @@ class SpaceAndTime:
     def refresh_token(self) -> str:
         return self.user.refresh_token
     
+    def logger_addFileHandler(self, file:Path) -> None:
+        """Adds a logging file (handler) location to the default logging object, creating any needed folders and replacing {datetime}, {date}, or {time} with sxt start_time."""
+        file = Path( self.__replaceall(str(file.resolve()), replacemap={}) )
+        file.parent.mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(file)
+        fh.formatter = self.logger.sxtformat
+        self.logger.addHandler(fh)
+
 
     def authenticate(self, user:SXTUser = None):
         """--------------------
@@ -150,11 +162,13 @@ class SpaceAndTime:
             return False, {'error':f'Error in query execution: {ex}'}
 
         if output_format == SXTOutputFormat.JSON: return True, rtn
-        if output_format == SXTOutputFormat.CSV: return True, self.json_to_csv(rtn)
+        if output_format == SXTOutputFormat.CSV: return self.json_to_csv(rtn)
+        if output_format == SXTOutputFormat.DATAFRAME: return self.json_to_dataframe(rtn)
+        if output_format == SXTOutputFormat.PARQUET: return self.json_to_parquet(rtn)
         return True, rtn
         
-    @staticmethod
-    def json_to_csv(list_of_dicts:list) -> list:
+
+    def json_to_csv(self, list_of_dicts:list) -> list:
         """--------------------
         Takes a list of dictionaries (default return from DQL query) and transforms to a list of CSV rows, preceded with a header row.
 
@@ -162,26 +176,69 @@ class SpaceAndTime:
             list_of_dicts (list): A list of dictionary items, i.e., rows of JSON columns.
 
         Returns: 
+            bool: success flag
             list: A list of CSV strings, i.e., rows of CSV values plus a header row (len(list) will always be N+1)
-
-        Examples:
-            >>> success, rows = SpaceAndTime.json_to_csv([{"id":1, "val":"A"}, {"id":2, "val":"B"}, {"id":3, "val":"C"}])
-            >>> len(rows)
-            4
-            >>> rows[1] == '"1","A"'
-            True
-
         """
         if list_of_dicts == []: return False, []
-        rows = [','.join( list(list_of_dicts[0].keys()) )] # headers
-        for row in list_of_dicts:
-            rows.append( ','.join([f'"{str(val).replace(chr(34),chr(34)+chr(34))}"' for val in list(row.values())]) )
-        return True, rows 
+        try:
+            rows = [','.join( list(list_of_dicts[0].keys()) )] # headers
+            for row in list_of_dicts:
+                rows.append( ','.join([f'"{str(val).replace(chr(34),chr(34)+chr(34))}"' for val in list(row.values())]) )
+            self.logger.debug('Query JSON transformed to CSV')
+            return True, rows 
+        except Exception as ex:
+            self.logger.error(f'Query JSON could not be transformed to CSV: {ex}')
+            return False, None
+            
+
+    def json_to_dataframe(self, list_of_dicts:list) -> pd.DataFrame:
+        """--------------------
+        Takes a list of dictionaries (default return from DQL query) and transforms to a dataframe object.
+
+        Args:
+            list_of_dicts (list): A list of dictionary items, i.e., rows of JSON columns.
+
+        Returns: 
+            bool: success flag
+            list: pandas dataframe object.
+        """
+        try:
+            df = pd.read_json( StringIO(json.dumps(list_of_dicts)) )
+            self.logger.debug('Query JSON transformed to DataFrame')
+            return True, df 
+        except Exception as ex:
+            self.logger.error(f'Query JSON could not be transformed to DataFrame: {ex}')
+            return False, None 
+
+
+    def json_to_parquet(self, list_of_dicts:list) -> bytes:
+        """--------------------
+        Takes a list of dictionaries (default return from DQL query) and transforms to a parquet byte array.
+
+        Args:
+            list_of_dicts (list): A list of dictionary items, i.e., rows of JSON columns.
+
+        Returns: 
+            bool: success flag
+            list: parquet formatted binary.
+        """
+        success, df = self.json_to_dataframe(list_of_dicts)
+        if not success: 
+            self.logger.warning('Query JSON return could not be turned into a DataFrame, and hence, not into a Parquet Binary')
+            return False, None 
+        try:
+            pq = df.to_parquet()
+            self.logger.debug('Query JSON transformed to Parquet Binary')
+            return True, pq 
+        except Exception as ex:
+            self.logger.error(f'Query JSON could not be transformed to Parquet Binary: {ex}')
+            return False, None 
             
 
     def __replaceall(self, mainstr:str, replacemap:dict) -> str:
         if 'date' not in replacemap.keys(): replacemap['date'] = datetime.now().strftime('%Y%m%d')
         if 'time' not in replacemap.keys(): replacemap['time'] = datetime.now().strftime('%H%M%S')
+        if 'datetime' not in replacemap.keys(): replacemap['datetime'] = datetime.now().strftime('%Y%m%d_%H%M%S')
         for findname, replaceval in replacemap.items():
             mainstr = mainstr.replace('{'+str(findname)+'}', str(replaceval))                    
         return mainstr
@@ -196,7 +253,7 @@ class SpaceAndTime:
         Args:
             scope (SXTDiscoveryScope): (optional) Scope of objects to return: All, Public, Subscription, or Private. Defaults to SXTDiscoveryScope.ALL.
             user (SXTUser): (optional) Authenticated User object. Uses default user if omitted.
-            return_as (type): (optional) Python type to return. Currently supports n, dict, list, str.
+            return_as (type): (optional) Python type to return. Currently supports json, dict, list, str.
 
         Returns: 
             object: Return type defined with the return_as feature.
@@ -204,10 +261,13 @@ class SpaceAndTime:
         if not user: user = self.user
         if not scope: scope = SXTDiscoveryScope.ALL
         success, response = user.base_api.discovery_get_schemas(scope=scope.name)  
-        if success and return_as in [list, str]: response = sorted([tbl['schema'] for tbl in response])
-        if success and return_as == str: response = ', '.join(response)
-        if success and return_as not in [json, dict, list, str]:
-            self.logger.warning('Supplied an unsupported return type, only [json, list, str] currently supported. Defaulting to dict.')
+        if success:
+            if return_as in [list, str]: 
+                response = sorted([tbl['schema'] for tbl in response])
+                if return_as == str: response = ', '.join(response)
+            elif return_as in [json, dict]: pass # no change needed
+            else:
+                self.logger.warning('Supplied an unsupported return type, only [json, list, str] currently supported. Defaulting to dict.')
         return success, response
 
         
@@ -224,7 +284,7 @@ class SpaceAndTime:
             scope (SXTDiscoveryScope): (optional) Scope of objects to return: All, Public, Subscription, or Private. Defaults to SXTDiscoveryScope.ALL.
             user (SXTUser): (optional) Authenticated User object. Uses default user if omitted.
             search_pattern (str): (optional) Tablename pattern to match for inclusion into result set. Defaults to None / all tables.
-            return_as (type): (optional) Python type to return. Currently supports n, dict, list, str.
+            return_as (type): (optional) Python type to return. Currently supports json, dict, list, str.
 
         Returns: 
             object: Return type defined with the return_as feature.
@@ -232,7 +292,38 @@ class SpaceAndTime:
         if not user: user = self.user
         if not scope: scope = SXTDiscoveryScope.ALL
         success, response = user.base_api.discovery_get_tables(scope=scope.name, schema=schema, search_pattern=search_pattern)  
-        if success and return_as in [list, str]: response = sorted([ f"{r['schema']}.{r['table']}" for r in response])
+        if success:
+            if return_as in [list, str]: 
+                response = sorted([ f"{r['schema']}.{r['table']}" for r in response])
+                if return_as == str: response = ', '.join(response)
+            elif return_as in [dict,json]: response = {f"{r['schema']}.{r['table']}":r for r in response}
+            else:
+                self.logger.warning('Supplied an unsupported return type, only [json, dict, list, str] currently supported. Defaulting to dict.')
+        return success, response
+
+
+    def discovery_get_table_columns(self, schema:str, tablename:str, 
+                             user:SXTUser = None, 
+                             search_pattern:str = None, 
+                             return_as:type = json) -> tuple:
+        """--------------------
+        Connects to the Space and Time network and returns all available columns within a table.
+
+        Args:
+            schema (str): Schema name containing the below tablename.
+            tablename (str): Name of table to search metadata for, and return list of column information.
+            user (SXTUser): (optional) Authenticated User object. Uses default user if omitted.
+            search_pattern (str): (optional) Tablename pattern to match for inclusion into result set. Defaults to None / all columns.
+            return_as (type): (optional) Python type to return. Currently supports n, dict, list, str.
+
+        Returns: 
+            object: Return type defined with the return_as feature.
+        """        
+        if not user: user = self.user
+        success, response = user.base_api.discovery_get_columns(schema=schema, table=tablename)  
+        if success and search_pattern: 
+            response = [r for r in response if str(search_pattern).lower() in r['column'].lower()]
+        if success and return_as in [list, str]: response = sorted([ f"{r['column']}" for r in response])
         if success and return_as == str: response = ', '.join(response)
         if success and return_as == json: response = {f"{r['schema']}.{r['table']}":r for r in response}
         if success and return_as not in [json, dict, list, str]:
@@ -249,11 +340,16 @@ if __name__ == '__main__':
     from pprint import pprint
     def randpad(i=6): return str(random.randint(0,999999)).rjust(6,'0')
 
+    
+
     if True:
 
         # BASIC USAGE 
         sxt = SpaceAndTime()
         sxt.authenticate()
+
+        pprint( sxt.discovery_get_schemas(return_as=dict) )
+        pprint( sxt.discovery_get_tables(schema='SXTDemo', return_as=dict) )
 
         success, rows = sxt.execute_query(
             'select * from POLYGON.BLOCKS limit 5')

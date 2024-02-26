@@ -42,6 +42,8 @@ class SXTSqlType(Enum):
 class SXTOutputFormat(Enum):
     JSON = 'json'
     CSV = 'csv'
+    DATAFRAME = 'dataframe'
+    PARQUET = 'parquet'
     def __str__(self) -> str:
         return super().__str__()
     

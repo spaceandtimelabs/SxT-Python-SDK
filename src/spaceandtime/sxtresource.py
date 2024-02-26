@@ -16,6 +16,7 @@ class SXTResource():
     PERMISSION = SXTPermission
     create_ddl:str = ''
     user: SXTUser = None
+    key_manager: SXTKeyManager = None
     filepath: Path = ''
     application_name:str = ''
     biscuits = []
@@ -23,7 +24,7 @@ class SXTResource():
     __rcn:str = ''
     __ddlt__:str = ''
     __allprops__: list = []
-    __with__:str 
+    __with__:dict 
     __existfunc__ = None
     default_local_folder:Path = None
     __foname__:str = 'resources'
@@ -41,7 +42,7 @@ class SXTResource():
             if not application_name: application_name = SpaceAndTime_parent.application_name
             if not logger: logger = SpaceAndTime_parent.logger
             if not default_user: default_user = SpaceAndTime_parent.user
-            if not key_manager: key_manager = SpaceAndTime_parent.key_manager
+            # if not key_manager: key_manager = SpaceAndTime_parent.key_manager  # this gets confused with Default.User, so removing
             if not default_local_folder: default_local_folder = SpaceAndTime_parent.default_local_folder
             if not start_time: start_time = SpaceAndTime_parent.start_time
 
@@ -66,17 +67,17 @@ class SXTResource():
         self.user = default_user if default_user else SXTUser()
         self.application_name = application_name 
         self.start_time = start_time if start_time else datetime.now()  
-        if key_manager and type(key_manager)==SXTKeyManager and not new_keypair:
+        if key_manager and type(key_manager)==SXTKeyManager:
             self.key_manager = key_manager
             if private_key: self.key_manager.private_key = private_key
-        else:
+        elif self.key_manager == None:
             self.key_manager = SXTKeyManager(private_key=private_key, new_keypair=new_keypair, logger=logger, encoding=SXTKeyEncodings.BASE64 )
 
         # add exceptions, for visibility
         self.SXTExceptions = SxTExceptions
 
         # generate list of properties to expose to user during find/replace or logging
-        self.__with__ = 'WITH "public_key={public_key}"'
+        self.__with__ = {"public_key":"{public_key}"}
         self.__allprops__ = [self.resource_type.value, 'start_time','resource_name','resource_type','resource_name_template',
                              'resource_private_key','resource_public_key','biscuits',
                              'with_statement', 'create_ddl_template','create_ddl']
@@ -180,7 +181,8 @@ class SXTResource():
         tmpprops = [k for k in self.__allprops__ if k not in ['biscuits','create_ddl','create_ddl_template','with','with_statement']]
         tmpencoding = self.key_manager.encoding
         if tmpencoding != SXTKeyEncodings.HEX: self.key_manager.encoding = SXTKeyEncodings.HEX
-        rtn = self.replace_all(self.__with__, self.to_dict(False, tmpprops) )
+        tmpwith =  'WITH "' + ','.join([ f"{n}={v}" for n,v in self.__with__.items() ]) + '"'
+        rtn = self.replace_all(tmpwith, self.to_dict(False, tmpprops) )
         if tmpencoding != SXTKeyEncodings.HEX: self.key_manager.encoding = tmpencoding
         return rtn 
     
@@ -203,7 +205,8 @@ class SXTResource():
         if self.user.access_expired: self.user.authenticate()
         success, resources = self.__existfunc__(schema=self.schema)
         if success:
-            does_exist = f"{self.schema}.{self.name}".upper() in [ f"{r['schema']}.{r[self.resource_type.name.lower()]}".upper() for r in resources]
+            apiname = 'table' if self.resource_type.name.lower() == 'table' else 'view'
+            does_exist = f"{self.schema}.{self.name}".upper() in [ f"{r['schema']}.{r[apiname]}" for r in resources]
             self.logger.debug(f'testing whether {self.resource_name} exists:  {str(does_exist)}')
             return does_exist 
         else:
@@ -297,7 +300,7 @@ class SXTResource():
 
     def to_json(self, obscure_private_key:bool = True, omit_keys:list = []) -> json:
         """--------------------
-        Returns a json document containing relevent information from the Resource object.
+        Returns a json document containing relevant information from the Resource object.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys.
@@ -311,14 +314,14 @@ class SXTResource():
 
     def to_dict(self, obscure_private_key:bool = True, include_keys:list = []) -> dict:
         """--------------------
-        Returns a dictionary object containing relevent information from the Resource object.
+        Returns a dictionary object containing relevant information from the Resource object.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys.
             include_keys (list): List of key names to include in the return.  Defaults to all keys.
             
         Returns:
-            dict: Curated dictionary of relevent values in the class.
+            dict: Curated dictionary of relevant values in the class.
         """
         if include_keys ==[]: include_keys = self.__allprops__
         rtn = {}
@@ -352,7 +355,7 @@ class SXTResource():
                 func_biscuit_formatter = lambda n,v: f'{n}_biscuit_token={v}',
                 func_sql_formatter = lambda n,v: f'{n}\n:{v}') -> list:
         """------------------
-        Returns a list object containing relevent information from the Resource object, with name/value formatted to one line.
+        Returns a list object containing relevant information from the Resource object, with name/value formatted to one line.
 
         Args:
             obscure_private_key (bool): If True will only display first 6 characters of private keys
@@ -432,7 +435,8 @@ class SXTResource():
         if not biscuits: biscuits = list(self.biscuits) 
         if biscuits == []: 
             raise SxTArgumentError('A biscuit with DROP must be included.', logger=self.logger)
-        sql_text = f'DROP {self.resource_type.name} {self.resource_name}' 
+        objtype = 'TABLE' if self.resource_type.name.lower()=='table' else 'VIEW'
+        sql_text = f'DROP {objtype} {self.resource_name}' 
         success, results = user.base_api.sql_ddl(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name)
         if success: 
             self.logger.info(f'       DROPPED: {self.resource_name}')
@@ -442,7 +446,7 @@ class SXTResource():
         return success, results
         
 
-    def select(self, sql_text:str = '', columns:list = ['*'], user:SXTUser = None, biscuits:list = None, row_limit:int = 20) -> json:
+    def select(self, sql_text:str = '', columns:list = ['*'], user:SXTUser = None, biscuits:list = None, row_limit:int = 50) -> json:
         """--------------------
         Issues a SELECT statement to the Space and Time network, and report back success and rows (or failure details).
 
@@ -454,7 +458,7 @@ class SXTResource():
             columns (list): List of columns to build the SELECT statement.  Defaults to "*".  If sql_text is supplied, this is ignored.
             user (SXTUser): Authenticated user who will issue the command.  If omitted, will use the default user, resource.user
             biscuits (list): List of biscuits to include with the request, either as string biscuit tokens or as SXTBiscuit objects.  If omitted, will use the class.biscuits list.  
-            row_limit (int): Limits the number of rows returned. 
+            row_limit (int): Limits the number of rows returned. If set to -1 or None, no row limit is applied. Default 50.
 
         Returns: 
             bool: Success flag, True if the object was dropped.
@@ -474,7 +478,8 @@ class SXTResource():
         if not biscuits: biscuits = list(self.biscuits) 
         if biscuits == []: 
             self.logger.warning('No biscuits found. While this may be OK, it can also cause errors.')
-        if sql_text == '': sql_text = f"SELECT { ','.join( columns ) } FROM {self.resource_name} LIMIT {row_limit}"
+        row_limit = '' if row_limit < 0 or not row_limit else f'LIMIT {row_limit}'
+        if sql_text == '': sql_text = f"SELECT { ','.join( columns ) } FROM {self.resource_name} {row_limit}"
         self.logger.info(f'{self.resource_type.name} Query Started: {self.resource_name}:\n{sql_text}')
         success, results = user.base_api.sql_dql(sql_text=sql_text, biscuits=biscuits, resources=self.resource_name, app_name=self.application_name)
         if success: 
@@ -692,6 +697,7 @@ class SXTResource():
 
 class SXTTable(SXTResource):
     access_type: SXTTableAccessType 
+    __pc__: str = None 
 
     def __init__(self, name:str='', from_file:Path=None, default_user:SXTUser = None, 
                  private_key:str = '', new_keypair:bool = False, key_manager:SXTKeyManager = None,
@@ -728,8 +734,9 @@ class SXTTable(SXTResource):
         super().__init__(name, from_file, default_user, private_key, new_keypair, key_manager, application_name, start_time, default_local_folder, logger, SpaceAndTime_parent)
         self.access_type = access_type
         self.__allprops__.insert(2, 'access_type')
-        self.__with__= 'WITH "public_key={public_key}, access_type={access_type}"'
+        self.__with__=  {"public_key":"{public_key}", "access_type":"{access_type}"}
         self.insert = self.__ins__(self)
+        self.__existfunc__ = self.user.base_api.discovery_get_tables
         
     @property
     def table_name(self) ->str:
@@ -737,7 +744,42 @@ class SXTTable(SXTResource):
     @table_name.setter
     def table_name(self, value):
         self.resource_name = value
+    
+    @property
+    def partition_column(self) -> str:
+        if 'partition_cols' in self.__with__.keys:
+            return self.__with__['partition_cols']
+        else:
+            return None 
+    @partition_column.setter
+    def partition_column(self, value:str):
+        if len(value) == 0 and 'partition_cols' in self.__with__.keys:
+            self.__with__.pop('partition_cols')
+        elif len(value) > 0:
+            self.__with__['partition_cols'] = str(value)
 
+    @property
+    def immutable(self) -> bool:
+        return 'immutable' in self.__with__.keys
+    @immutable.setter
+    def immutable(self, value:bool):
+        if type(value) != bool: raise ValueError("Attribute 'immutable' must be a boolean type.")
+        if value: 
+            self.__with__['immutable'] = 'true'
+        else:
+            self.__with__.pop('immutable','') 
+
+    @property
+    def require_primary_key(self) -> bool:
+        return 'key_type' not in self.__with__.keys
+    @require_primary_key.setter
+    def require_primary_key(self, value:bool):
+        if type(value) != bool: raise ValueError("Attribute 'require_primary_key' must be a boolean type.")
+        if value:
+            self.__with__.pop('key_type','') 
+        else: 
+            self.__with__['key_type'] = 'RandomString'
+            
 
 
     def get_column_names(self) -> dict:
@@ -745,7 +787,7 @@ class SXTTable(SXTResource):
         
         Useful when an iterable list of columns (and types) is required, such as building 
         INSERT statements or view SELECT lists.  Order should be preserved, although as a dict 
-        object type, this is technically not gauranteed.
+        object type, this is technically not guaranteed.
         """
         rtn = {}
 
@@ -846,54 +888,6 @@ class SXTTable(SXTResource):
             return err==0, {'rows': good+err, 'successes':good, 'errors':err, 'error_list':err_rtn }
 
 
-    # def insert(self, sql_text:str = None, columns:list = None, data:list = None, user:SXTUser = None, biscuits:list = None):
-    #     """-----------------
-    #     Inserts records into the table, in one DML request per 1000 rows.
-
-    #     The process uses a column list and data list (rather than a single dictionary) because the multi-row 
-    #     insert syntax requires a single column definition, with all data rows expected to follow that same 
-    #     order and completeness. This also adheres better to common high-volumn analytic formats like CSV, 
-    #     where repeating column definitions becomes onerous.  Note: this submits in 1000 row transactions, 
-    #     so it is possible to have partially successful loads (in 1000 row chunks). Once any part insert fails
-    #     the holistic process stops and reports an error, and reports Success = False.
-
-    #     Args:
-    #         sql_text (str): If set, columns and data are ignored and this SQL text is simply passed thru to the network directly as a DML request.
-    #         columns (list): List of columns to build the INSERT statement. Order must match the data list.
-    #         data (list): List of data that matches the columns order.  
-    #         user (SXTUser): User who will execute the request. Defaults to the default user.
-    #         biscuits (list): List of biscuits required to authorize this request. 
-
-    #     Returns: 
-    #         bool: Success flag, True if the data was fully inserted, False if any of the records failed.
-    #         object: Row output of the SQL request, in JSON format, or if error, details returned from the request.
-    #     """
-    #     user = self.get_first_valid_user(user)
-    #     if not biscuits: biscuits = list(self.biscuits) 
-    #     if biscuits == []: 
-    #         raise SxTArgumentError('A biscuit with INSERT permissions must be included.', logger=self.logger)
-    #     if not sql_text:
-    #         while data !=[]:
-    #             sql_text_prefix = f"INSERT INTO {self.table_name} ({ ', '.join(columns) }) VALUES \n"
-    #             sql_text_rows = []
-    #             for row in data[:999]:
-    #                 sql_text_rows.append( "('" + str("', '").join([str(val) for val in row]) + "')" )
-    #             sql_text = sql_text_prefix + ',\n'.join(sql_text_rows)
-    #             self.logger.debug(f'insert statement generated:\n{sql_text}\n')
-    #             success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name, resources=[self.table_name])
-    #             data = data[999:]
-    #         if not success: 
-    #             msg = 'NOTE: data may have been left in a partially inserted state.'
-    #             response[0]['warning'] = msg
-    #             self.logger.error(msg)
-    #             return success, response
-    #     else: # manual sql_text
-    #         success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.application_name, resources=[self.table_name])
-    #     return success, response
-
-
-
-
     def delete(self, sql_text:str = None, where:str = '0=1', user:SXTUser = None, biscuits:list = None) -> (bool, dict):
         """--------------------
         Deletes records from the table, with a required WHERE statement.
@@ -902,7 +896,7 @@ class SXTTable(SXTResource):
 
         Args: 
             sql_text (str): If set, the sql_text is simply passed thru to the network directly as a DML request.
-            where (str): A WHERE statement to limit rows deleted. This defaults to a zero-delete statement, so must be overriden to execute a meaningful delete. 
+            where (str): A WHERE statement to limit rows deleted. This defaults to a zero-delete statement, so must be overridden to execute a meaningful delete. 
             user (SXTUser): User who will execute the request. Defaults to the default user.
             biscuits (list): List of biscuits required to authorize this request. 
 
@@ -959,8 +953,9 @@ class SXTView(SXTResource):
         self.resource_type = SXTResourceType.VIEW
         self.__foname__ = 'views'
         super().__init__(name, from_file, default_user, private_key, new_keypair, key_manager, application_name, start_time, default_local_folder, logger, SpaceAndTime_parent)
-        self.__with__= ' WITH "public_key={public_key}" '
+        self.__with__=  {"public_key":"{public_key}"}
         if table_biscuit: self.table_biscuit = table_biscuit
+        self.__existfunc__ = self.user.base_api.discovery_get_views
         
     @property
     def view_name(self) -> str:
@@ -1058,7 +1053,8 @@ class SXTMaterializedView(SXTResource):
         super().__init__(name, from_file, default_user, private_key, new_keypair, key_manager, application_name, start_time, default_local_folder, logger, SpaceAndTime_parent)
         self.__ri__ = 1440
         self.__allprops__.insert(2, 'refresh_interval')
-        self.__with__= ' WITH "public_key={public_key} , refresh_interval={refresh_interval}" '
+        self.__with__= {"public_key":"{public_key}", "refresh_interval":"{refresh_interval}"}
+        self.__existfunc__ = self.user.base_api.discovery_get_views
         
     @property
     def matview_name(self) ->str:

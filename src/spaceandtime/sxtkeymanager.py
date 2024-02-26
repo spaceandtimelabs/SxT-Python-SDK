@@ -19,7 +19,7 @@ class SXTKeyManager():
     keychange_callback_func_list = []
     __pv:bytes = bytes(''.encode())
     __pb:bytes = bytes(''.encode())
-    __en:SXTKeyEncodings = SXTKeyEncodings.BASE64
+    __en:SXTKeyEncodings = SXTKeyEncodings.HEX
     ENCODINGS = SXTKeyEncodings
 
 
@@ -75,7 +75,7 @@ class SXTKeyManager():
 
     @property
     def public_key(self):
-        if self.__pv and not self.__pb:
+        if self.__pv and len(self.__pb)==0:
             kp = KeyPair.from_private_key(PrivateKey.from_hex( self.convert_key(self.__pv, encoding_out = SXTKeyEncodings.HEX)))
             self.__pb = bytes(kp.public_key.to_bytes())
             self.__callback__('public_key')
@@ -99,6 +99,7 @@ class SXTKeyManager():
         return self.convert_key( key=self.__pv, encoding_out = encoding_out )
     
     def public_key_to(self, encoding_out: SXTKeyEncodings = SXTKeyEncodings.HEX):
+        if len(self.__pb)==0: x = self.public_key # trigger property to refresh
         return self.convert_key( key=self.__pb, encoding_out = encoding_out )
     
     def get_encoding_type(self, key) -> str:
@@ -216,6 +217,8 @@ class SXTKeyManager():
             str | bytes: Signed message, encoded per encoded_out (or class.encoding as default)
 
         """
+        if type(message)!=str: 
+            raise ValueError(f'paramter: "message" must be a string type, not {str(type(message))}')
         try:
             if not encoding_out: encoding_out = self.encoding
             signing_object = nacl.signing.SigningKey(bytes(self.__pv))
