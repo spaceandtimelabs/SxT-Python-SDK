@@ -382,11 +382,22 @@ class SXTResource():
 
 
     def get_first_valid_user(self, *users) -> SXTUser:
-        users = [user for user in list(users) + [self.user] if type(user) == SXTUser and not user.access_expired]
-        if users == []:
-            raise SxTArgumentError('SXT authenticated User must be provided as an argument to create the resource.', logger=self.logger)
-        return users[0]
-    
+        """
+        Returns the first valid SXTUser object passed into the arguments list, or 
+        current object default user, if available.
+        """
+        all_user_objects = [user for user in (list(users) + [self.user]) if type(user) == SXTUser]
+        if all_user_objects == []:
+            self.logger.warning('No SXTUser objects were provided. Returning None, but this may cause downstream errors.')
+            return None
+        
+        all_valid_user_objects = [user for user in all_user_objects if len(user.user_id)>0 and len(user.private_key)>0]
+        if all_valid_user_objects == []:
+            self.logger.warning('None of the supplied SXTUser objects appear capable of connecting to SXT Network. Returning the first, but this may cause downstream errors.')
+            return all_user_objects[0]
+
+        return all_valid_user_objects[0]
+     
 
     def create(self, sql_text:str = None, user:SXTUser = None, biscuits:list = None):
         """--------------------
