@@ -49,7 +49,7 @@ class SXTOutputFormat(Enum):
     
     
 class SXTTableAccessType(Enum):
-    PERMISSSIONED = 'permissioned'
+    PERMISSIONED = 'permissioned'
     PUBLIC_READ = 'public_read'
     PUBLIC_APPEND = 'public_append'
     PUBLIC_WRITE = 'public_write'
