@@ -34,7 +34,7 @@ class SXTBaseAPI():
         self.versions = json.loads(content)
 
 
-    def prep_biscuits(self, biscuits=list) -> list:
+    def prep_biscuits(self, biscuits=[]) -> list:
         """--------------------
         Accepts biscuits in various data types, and returns a list of biscuit_tokens as strings (list of str).  
         Primary use-case is class-internal.
@@ -51,7 +51,9 @@ class SXTBaseAPI():
             >>> biscuits == ['a', 'b', 'c', 'd']
             True
         """
-        if   type(biscuits) == str:
+        if   biscuits == None or len(biscuits) == 0:
+            return [] 
+        elif type(biscuits) == str:
             return [biscuits]
         elif type(biscuits) == SXTBiscuit:  
             return [biscuits.biscuit_token]
@@ -61,7 +63,11 @@ class SXTBaseAPI():
                 rtn = rtn + self.prep_biscuits(biscuit)
             return rtn 
         else:
-            return None
+            self.logger.warning(f"""Biscuit provided was an unexpected type: {type(biscuits)}
+                                Type must be one of [ str | list | SXTBiscuit object | None ]
+                                Ingnoring this biscuit entry. Biscuit value provided:
+                                {biscuits}""")
+            return []
 
 
     def prep_sql(self, sql_text:str) -> str:

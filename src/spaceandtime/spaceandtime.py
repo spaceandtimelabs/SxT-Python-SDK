@@ -99,7 +99,7 @@ class SpaceAndTime:
             user.refresh_token = 'eyJ0eXBlI_this_is_a_pretend_refresh_token_it_will_not_really_work_4lXUgI5gIdk8T5Rb4Zlx8-Z1rlY-0y4pu5b4lIjh60wQY_g0vkteuQE0Or0cPDbstDnLg8uRpz5dM4GNg7QHYQ'
             success, rtn = (True, user.access_token)
         user.base_api.access_token = self.user.access_token
-        self.logger.info(f'Authentcation Success: {success}')
+        self.logger.info(f'Authentication Success: {success}')
         if not success: self.logger.error(f'Authentication error: {str(rtn)}')
         return success, rtn
     

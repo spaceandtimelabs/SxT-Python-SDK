@@ -1,4 +1,4 @@
-import os, logging, datetime 
+import os, logging, datetime, random
 from pathlib import Path
 from dotenv import load_dotenv
 from .sxtexceptions import SxTAuthenticationError, SxTArgumentError
@@ -26,7 +26,9 @@ class SXTUser():
                  user_private_key:str = None, api_url:str = None,
                  encoding:SXTKeyEncodings = None, authenticate:bool = False, 
                  application_name:str = None,
-                 logger:logging.Logger = None, SpaceAndTime_parent:object = None) -> None:
+                 logger:logging.Logger = None, 
+                 SpaceAndTime_parent:object = None,
+                 **kwargs) -> None:
         
         # start with parent import
         if SpaceAndTime_parent:
@@ -57,6 +59,10 @@ class SXTUser():
         if user_private_key: self.private_key = user_private_key
         if user_id: self.user_id = user_id
         if api_url: self.api_url = api_url
+
+        # secret option: make a test user_id if requested:
+        if 'testuser' in kwargs: 
+            self.user_id = 'testuser_' + kwargs['testuser'] + '_' + f"{random.randint(0,999999999999):012}"
 
         self.logger.info(f'SXT User instantiated: {self.user_id}')
         if authenticate: self.authenticate()
@@ -285,8 +291,14 @@ class SXTUser():
         self.base_api.access_token = self.access_token
         return True, self.access_token 
 
-
     def execute_sql(self, sql_text:str, biscuits:list = None, app_name:str = None):
+        """
+        This is a duplicate of the "execute_query" method, provided for backwards compatibility.
+        Use the more consistent "execute_query" to avoid future deprecation issues. 
+        """
+        return self.execute_query(sql_text=sql_text, biscuits=biscuits, app_name=app_name)
+
+    def execute_query(self, sql_text:str, biscuits:list = None, app_name:str = None):
         return self.base_api.sql_exec(sql_text=sql_text, biscuits=biscuits, app_name=app_name)
 
     def generate_joincode(self, role:str = 'member'):
