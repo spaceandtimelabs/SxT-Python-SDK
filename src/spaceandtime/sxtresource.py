@@ -1,4 +1,5 @@
 import logging, json, random, time
+from pysteve import pySteve
 from pathlib import Path
 from datetime import datetime
 from .sxtenums import SXTResourceType, SXTPermission, SXTKeyEncodings, SXTTableAccessType
@@ -144,11 +145,12 @@ class SXTResource():
         return self.replace_all(self.__rcn, self.to_dict(False, tmpprops) )
     @resource_name.setter
     def resource_name(self, value):
-        for biscuit in self.biscuits:
-            if not biscuit._SXTBiscuit__manualtoken:
-                biscuit._SXTBiscuit__cap[value] = biscuit._SXTBiscuit__cap[self.__rcn]
-                del biscuit._SXTBiscuit__cap[self.__rcn]
-                biscuit.regenerate_biscuit_token()
+        if self.__rcn !='' and self.__rcn.lower() != value.lower():
+            for biscuit in self.biscuits: # update "capabilities" to new name
+                if not biscuit._SXTBiscuit__manualtoken:
+                    biscuit._SXTBiscuit__cap[value] = biscuit._SXTBiscuit__cap[self.__rcn]
+                    del biscuit._SXTBiscuit__cap[self.__rcn]
+                    biscuit.regenerate_biscuit_token()
         self.__rcn = value 
         
 
@@ -516,7 +518,7 @@ class SXTResource():
         raise self.__lasterr__
     
 
-    def load(self, filepath:Path, find_latest:bool = False ):
+    def load(self, filepath:Path, exact_match_only:bool = True, docstring_marker_override:str = None):
         """--------------------
         Loads Resource file *WITH PRIVATE KEYS* to the current object, overwriting all current values.
 
@@ -528,65 +530,41 @@ class SXTResource():
         
         Args:
             filepath (Path): File to load into object.
-            find_latest (bool): If True, will accept incomplete filename and search the parent folder for the last matching. This works well in tandum with the recommended_filename to load the most recent file. Defaults to False (off).
+            exact_match_only (bool): If False, will accept incomplete filenames or filenames with iterators.
 
         Returns: 
             bool: True if load was successful, False if not. 
         """
         if not filepath: raise ValueError(f'Must supply a filepath to load().')
-        self.clear_all()
-        filepath = self.__filestarts__(filepath) if find_latest else Path(filepath)
-        if not filepath or not filepath.exists(): filepath = Path(self.default_local_folder / filepath)
-        if not filepath or not filepath.exists(): filepath = Path(self.default_local_folder.parent/ filepath)
-        if not filepath or not filepath.exists(): filepath = Path(self.default_local_folder / self.__foname__ / filepath)
-        if not filepath or not filepath.exists(): filepath = Path(self.default_local_folder.parent / self.__foname__ / filepath)
-        if not filepath or not filepath.exists(): raise FileNotFoundError(f'Resource file not found: {filepath}')
-        filepath = filepath.resolve()
+        self.clear_all()        
+        
+        # just in case, try to catch other past docstring markers
+        for trymarkers in [docstring_marker_override, 'EOM', 'EOMsg', None, docstring_marker_override]:
+            loadmap = pySteve.envfile_load(load_path=Path(filepath).resolve(), exact_match_only=exact_match_only, docstring_marker_override=trymarkers)
+            missed_docstrmarkers = [v for n,v in loadmap.items() if v.strip().startswith('$(cat <<') and len(v)<=32]
+            if missed_docstrmarkers==[]: break 
+        loadmap = {k.lower():loadmap[k] for k in sorted(list(loadmap.keys()))} # sorted to prevent create_ddl / _template overwriting)
 
         try:    
-            # load and clean file content
-            with open(Path(filepath)) as fh: 
-                lines = fh.read().replace('\nEOM\n)\n','\n::E::').replace('$(cat << EOM','::S::').split('\n')
-                lines = [l for l in lines if not (l.strip()=='' 
-                                            or l.startswith('#') 
-                                            or l.startswith('DATE=') 
-                                            or l.startswith('TIME=') 
-                                            or l.startswith('START_TIME=') 
-                                            or l.startswith('WITH=')
-                                            or l.startswith('WITH_STATEMENT=')
-                                            or l.startswith('RESOURCE_TYPE=') 
-                                            or l.startswith('RESOURCE_PUBLIC_KEY=') 
-                                            or l.startswith('CREATE_DDL=')  )]
-                
-            # loop thru and build dict to control load
-            loadmap = {}
-            multiline = None
-            lines = iter(lines) # so we can do next()
-            for line in lines:
-                eq = line.find('=')
-                name  = line[:eq]
-                value = line[eq+1:]
-                if value[:1]=='"' and value[-1:]=='"': value = value[1:-1]
-                if  '::S::' in value: 
-                    multiline = []
-                    mline = ''
-                    while True:
-                        mline = next(lines, '')
-                        if '::E::' in mline: break
-                        multiline.append( mline )
-                    value = '\n'.join(multiline)
-                loadmap[name.lower()] = value
-                
-            # with loadmap, load into object (sorted, to prevent create_ddl / _template overwriting)
-            loadmap = {k:loadmap[k] for k in sorted(list(loadmap.keys()))} 
             for name, value in loadmap.items():
                 if name == 'start_time':
                     setattr(self, name, datetime.strptime(value, '%Y-%m-%d %H:%M:%S') )
+                elif name == 'resource_type': continue
                 elif name == 'resource_private_key':
                     self.key_manager = SXTKeyManager(private_key=value, encoding=SXTKeyEncodings.BASE64, logger=self.logger)
-                elif name.endswith( '_biscuit_token'):
+                elif name == 'access_type':
+                    if value in [str(n.value)for n in SXTTableAccessType]:
+                        value = SXTTableAccessType[value.upper()]
+                    elif 'pub' in value and 'read' in value: value = SXTTableAccessType.PUBLIC_READ
+                    elif 'pub' in value and 'writ' in value: value = SXTTableAccessType.PUBLIC_WRITE
+                    elif 'pub' in value and 'append' in value: value = SXTTableAccessType.PUBLIC_APPEND
+                    elif 'priv' in value: value = SXTTableAccessType.PERMISSSIONED
+                    else: continue # just skip
+                    setattr(self, name, value)
+                elif name.endswith( '_biscuit_token') or name.endswith( '_biscuit'):
                     if type(self.biscuits) != list:  self.biscuits = []
-                    self.biscuits.append(SXTBiscuit(name=name.replace('_biscuit_token',''), logger=self.logger, 
+                    self.biscuits.append(SXTBiscuit(name=name.replace('_biscuit_token','').replace('_biscuit',''),
+                                                    logger=self.logger, 
                                                     private_key=self.private_key,
                                                     biscuit_token= value))
                 else:
@@ -871,7 +849,9 @@ class SXTTable(SXTResource):
                 success = False
                 while success == False:
                     success, result = self.with_sqltext(sql_text=sql_text, biscuits=biscuits, user=user, log=False)
-                    if not success: time.sleep(2)
+                    if not success: 
+                        if len(result)>=1 and 'text' in result[0] and 'Duplicate key during INSERT' in result[0]['text']: break # no point in retrying this
+                        time.sleep(2)
                     if tries >=3: break
                     tries +=1
 
@@ -930,7 +910,7 @@ class SXTView(SXTResource):
         Creates a new Space and Time View object.
 
         Accepts a good number of settings during init, either individually (name, private_key,
-        access_type) or use from_file to pass in Path to a save() file to reload previous config.
+        etc.) or use from_file to pass in Path to a save() file to reload previous config.
         Similarly, object parameters can be passed in individually (application_name, logger, 
         key_manager, default_user) or pass in the SpaceAndTime_parent object, and those objects
         will be inherited automatically.  The SpaceAndTime parameters are loaded first, 
@@ -943,7 +923,6 @@ class SXTView(SXTResource):
             private_key (str): Private key for the Resource (not user), in Base64, Hex, or Binary.
             new_keypair (bool): If True, creates a new keypairs, overriding key_manager but not private_key (if set).
             key_manager (SXTKeyManager): Key manager object
-            access_type (SXTTableAccessType): Access type of table, by enum (permissioned, public_read, etc.)
             application_name (str): Name of the application, for logging and Space And Time query logging (if enabled).
             start_time (datetime): Starting time of the process (for uniformity across objects).
             default_local_folder (Path): default local path for saving / loading files.
@@ -1028,7 +1007,7 @@ class SXTMaterializedView(SXTResource):
         Creates a new Space and Time Materialized View object.
 
         Accepts a good number of settings during init, either individually (name, private_key,
-        access_type) or use from_file to pass in Path to a save() file to reload previous config.
+        etc.) or use from_file to pass in Path to a save() file to reload previous config.
         Similarly, object parameters can be passed in individually (application_name, logger, 
         key_manager, default_user) or pass in the SpaceAndTime_parent object, and those objects
         will be inherited automatically.  The SpaceAndTime parameters are loaded first, 
@@ -1041,7 +1020,6 @@ class SXTMaterializedView(SXTResource):
             private_key (str): Private key for the Resource (not user), in Base64, Hex, or Binary.
             new_keypair (bool): If True, creates a new keypairs, overriding key_manager but not private_key (if set).
             key_manager (SXTKeyManager): Key manager object
-            access_type (SXTTableAccessType): Access type of table, by enum (permissioned, public_read, etc.)
             application_name (str): Name of the application, for logging and Space And Time query logging (if enabled).
             start_time (datetime): Starting time of the process (for uniformity across objects).
             default_local_folder (Path): default local path for saving / loading files.
