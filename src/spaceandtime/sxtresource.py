@@ -679,7 +679,7 @@ class SXTTable(SXTResource):
 
     def __init__(self, name:str='', from_file:Path=None, default_user:SXTUser = None, 
                  private_key:str = '', new_keypair:bool = False, key_manager:SXTKeyManager = None,
-                 access_type:SXTTableAccessType = SXTTableAccessType.PERMISSSIONED,
+                 access_type:SXTTableAccessType = SXTTableAccessType.PERMISSIONED,
                  application_name:str = None, start_time:datetime = None,
                  default_local_folder:Path = None,
                  logger:logging.Logger = None, SpaceAndTime_parent:object = None) -> None:
