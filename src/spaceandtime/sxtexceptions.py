@@ -1,13 +1,27 @@
 import logging
 
 def log_if_logger(*args, **kwargs) -> None:
-    msg = ''
-    if 'logger' in kwargs: 
-        if 'message' in kwargs: 
-            msg = kwargs['message']  
-        else: 
-            if len(args) >=1: msg = str(args[0])    
-        logging.Logger(kwargs['logger']).error(msg)
+
+    # use supplied logger if supplied, or root if it has been setup, otherwise no logger, just exit
+    if 'logger' in kwargs and type(kwargs['logger']) in [logging.RootLogger, logging.Logger]: 
+        errlogger = kwargs['logger']
+    else: 
+        try:
+            if logging.getLogger().hasHandlers():  
+                errlogger = logging.getLogger()
+            else: 
+                return None
+        except:
+            return None 
+
+    # use message if supplied in kwargs, or as pos0 in args
+    if 'message' in kwargs: 
+        msg = kwargs['message']  
+    else: 
+        msg = 'No message supplied' if len(args) == 0 else str(args[0])    
+
+    # log message
+    errlogger.error(msg)
     return None
 
 
@@ -47,6 +61,12 @@ class SxTAPINotDefinedError(Exception):
         super().__init__(*args)
 
 
+class SxTAPINotSuccessfulError(Exception):
+    def __init__(self, *args: object, **kwargs) -> None:
+        log_if_logger(*args, **kwargs)
+        super().__init__(*args)
+
+
 class SxTExceptions():
     SxTAuthenticationError = SxTAuthenticationError
     SxTQueryError = SxTQueryError
@@ -55,3 +75,4 @@ class SxTExceptions():
     SxTKeyEncodingError = SxTKeyEncodingError
     SxTBiscuitError = SxTBiscuitError
     SxTAPINotDefinedError = SxTAPINotDefinedError
+    SxTAPINotSuccessfulError = SxTAPINotSuccessfulError
