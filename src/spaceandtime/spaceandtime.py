@@ -321,12 +321,22 @@ class SpaceAndTime:
         """        
         if not user: user = self.user
         success, response = user.base_api.discovery_get_columns(schema=schema, table=tablename)  
-        if success and search_pattern: 
-            response = [r for r in response if str(search_pattern).lower() in r['column'].lower()]
-        if success and return_as in [list, str]: response = sorted([ f"{r['column']}" for r in response])
-        if success and return_as == str: response = ', '.join(response)
-        if success and return_as == json: response = {f"{r['schema']}.{r['table']}":r for r in response}
-        if success and return_as not in [json, dict, list, str]:
+        if not success: 
+            self.logger.warning("WARNING: base_api.discovery_get_columns() failed to return Success")
+            return False, None
+            # raise SxTAPINotSuccessfulError("base_api.discovery_get_columns() failed to return Success")
+        if search_pattern: response = [r for r in response if str(search_pattern).lower() in r['column'].lower()]
+
+        # sort by 'position'
+        response = sorted(response, key=lambda d: d['position'])
+
+        if return_as in [list, str]: 
+            response = sorted([ f"{r['column']}" for r in response])
+            if return_as == str: response = ', '.join(response)
+        elif return_as == dict: 
+            response = {r['column']:{n:v for n,v in r.items() if n!='column'} for r in response}
+        elif return_as == json: pass # return list_of_dicts 
+        else:
             self.logger.warning('Supplied an unsupported return type, only [json, list, str] currently supported. Defaulting to dict.')
         return success, response
 

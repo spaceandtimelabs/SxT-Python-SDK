@@ -8,8 +8,31 @@ from spaceandtime.spaceandtime import SpaceAndTime
 from spaceandtime.spaceandtime import SXTUser
 from spaceandtime.sxtkeymanager import SXTKeyManager
 from spaceandtime.sxtbiscuits import SXTBiscuit
-
+from spaceandtime.sxtexceptions import *  # only contains exceptions prefixed with "SXT"
 API_URL = 'https://api.spaceandtime.app'
+
+
+def test_sxt_exceptions():
+    # test common exceptions
+    sxt = SpaceAndTime() 
+    sxt.user.user_id = ''
+    with pytest.raises(Exception) as e_info: sxt.authenticate()
+    with pytest.raises(SxTArgumentError) as e_info: sxt.authenticate()
+
+    sxt = SpaceAndTime() 
+    sxt.user.private_key = ''
+    with pytest.raises(Exception) as e_info: sxt.authenticate()
+    with pytest.raises(SxTArgumentError) as e_info: sxt.authenticate()
+
+    with pytest.raises(SxTAuthenticationError) as errinfo:   raise SxTAuthenticationError('test message: SxTAuthenticationError')
+    with pytest.raises(SxTQueryError) as errinfo:            raise SxTQueryError('test message: SxTQueryError')
+    with pytest.raises(SxTFileContentError) as errinfo:      raise SxTFileContentError('test message: SxTFileContentError')
+    with pytest.raises(SxTArgumentError) as errinfo:         raise SxTArgumentError('test message: SxTArgumentError')
+    with pytest.raises(SxTKeyEncodingError) as errinfo:      raise SxTKeyEncodingError('test message: SxTKeyEncodingError')
+    with pytest.raises(SxTBiscuitError) as errinfo:          raise SxTBiscuitError('test message: SxTBiscuitError')
+    with pytest.raises(SxTAPINotDefinedError) as errinfo:    raise SxTAPINotDefinedError('test message: SxTAPINotDefinedError')
+    with pytest.raises(SxTAPINotSuccessfulError) as errinfo: raise SxTAPINotSuccessfulError('test message: SxTAPINotSuccessfulError')
+
 
 
 def test_sxt_wrapper():
@@ -198,15 +221,16 @@ def test_discovery():
     
     success, columns = sxt.discovery_get_table_columns('POLYGON', 'BLOCKS', search_pattern='BLOCK', return_as=dict)
     assert success
-    assert 'BLOCK_NUMBER' in [c['column'] for c in columns]
+    assert 'BLOCK_NUMBER' in columns.keys()
     assert len(columns) < 5
     
+    success, columns = sxt.discovery_get_table_columns('SXTLABS', 'CRM_ACCOUNTS') # defaults to json, aka list-of-dicts
+    assert success
+    assert 'CREATED_TIME' in [c['column'] for c in columns]
+    assert 'ACCOUNT_NAME' in [c['column'] for c in columns]
+    assert len(columns) > 15
 
 
 if __name__ == '__main__':
-    
-    test_execute_query()
-    test_access_token_created()
-    test_execute_query()
-    test_discovery()
+    test_sxt_exceptions()
     pass 
