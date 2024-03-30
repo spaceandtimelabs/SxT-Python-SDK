@@ -11,6 +11,8 @@ from spaceandtime.sxtbiscuits import SXTBiscuit
 from spaceandtime.sxtexceptions import *  # only contains exceptions prefixed with "SXT"
 API_URL = 'https://api.spaceandtime.app'
 
+API_URL = 'https://api.spaceandtime.app'
+
 
 def test_sxt_exceptions():
     # test common exceptions
@@ -32,7 +34,6 @@ def test_sxt_exceptions():
     with pytest.raises(SxTBiscuitError) as errinfo:          raise SxTBiscuitError('test message: SxTBiscuitError')
     with pytest.raises(SxTAPINotDefinedError) as errinfo:    raise SxTAPINotDefinedError('test message: SxTAPINotDefinedError')
     with pytest.raises(SxTAPINotSuccessfulError) as errinfo: raise SxTAPINotSuccessfulError('test message: SxTAPINotSuccessfulError')
-
 
 
 def test_sxt_wrapper():
@@ -233,4 +234,8 @@ def test_discovery():
 
 if __name__ == '__main__':
     test_sxt_exceptions()
+    test_execute_query()
+    test_access_token_created()
+    test_execute_query()
+    test_discovery()
     pass 
