@@ -849,7 +849,8 @@ class SXTTable(SXTResource):
             """
             err_rtn = []
             good = err = 0
-            self.__rc__.logger.info(f'INSERT {len(list_of_dicts)} rows into {self.__rc__.resource_name}...')
+            row_count = len(list_of_dicts)
+            self.__rc__.logger.info(f'INSERT {row_count} rows into {self.__rc__.resource_name}...')
 
             for row in list_of_dicts:
                 cols = list(row.keys())
@@ -872,7 +873,7 @@ class SXTTable(SXTResource):
                     self.__rc__.logger.warning(f'    Error during insert: {sql_text[:sql_text.find("(")-1]}...')
                     err_rtn.append((result, sql_text))
             
-                self.__rc__.logger.info(f'    {self.__rc__.resource_name} Inserted Row {good+err} - Successes: {good}  Erred: {err}')
+                self.__rc__.logger.info(f'    {self.__rc__.resource_name} Inserted Row {good+err} of {row_count} ({(good+err)/row_count:.0%}) - Successes: {good}  Erred: {err}')
 
             self.__rc__.logger.info(f'INSERT into {self.__rc__.resource_name} complete - Total Rows: {good+err},  Successes: {good},  Erred: {err}')
             if not err==0: self.__rc__.__lasterr__ = self.__rc__.SXTExceptions.SxTQueryError(err_rtn)
