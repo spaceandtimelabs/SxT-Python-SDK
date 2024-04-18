@@ -7,7 +7,7 @@ sys.path.append(str( Path(Path(__file__).parents[1] / 'src').resolve() ))
 from spaceandtime.spaceandtime import SpaceAndTime
 from spaceandtime.spaceandtime import SXTUser
 from spaceandtime.sxtkeymanager import SXTKeyManager
-from spaceandtime.sxtresource import SXTResource
+from spaceandtime.sxtresource import SXTResource, SXTTable
 from spaceandtime.sxtbiscuits import SXTBiscuit
 
 API_URL = 'https://api.spaceandtime.app'
@@ -37,8 +37,102 @@ def test_resource_methods():
     assert rs.get_first_valid_user(userS, userO) == None
 
  
+def test_inserts_deletes_updates():
+    sxt = SpaceAndTime()
+    sxt.authenticate()
+
+    assert load_dotenv('./tests/.env')
+
+    tbl = SXTTable('SXTTemp.Test_DML', SpaceAndTime_parent=sxt)
+    tbl.create_ddl = """
+    CREATE TABLE {table_name} 
+    ( MyID         int
+    , MyName       varchar
+    , MyNumber     int
+    , Primary Key  (MyID) 
+    ) {with_statement} 
+    """
+    tbl.private_key = os.getenv('SXTTEMP_PRIVATE_KEY')
+    tbl.add_biscuit('admin',sxt.GRANT.ALL)
+    if not tbl.exists: 
+        tbl.create()
+    else:
+        tbl.delete(where='')
+
+    data = [ {'MyID':1, 'MyName':'Abby',  'MyNumber':6}
+            ,{'MyID':2, 'MyName':'Bob',   'MyNumber':6}
+            ,{'MyID':3, 'MyName':'Chuck', 'MyNumber':6}
+            ,{'MyID':4, 'MyName':'Daria', 'MyNumber':6}
+            ]
+    tbl.insert.with_list_of_dicts(data)
+    success, data = tbl.select()
+    assert success
+    assert [r['MYNUMBER'] for r in data] == [6, 6, 6, 6]
+    pass
+
+    tbl.update.with_sqltext('update {table_name} set MyNumber = 7')
+    success, data = tbl.select()
+    assert success
+    assert [r['MYNUMBER'] for r in data] == [7, 7, 7, 7]
+
+    update_data = [{'MyID':r['MYID'], 'MyNumber':r['MYID']} for r in data]
+    tbl.update.with_list_of_dicts('MyID',update_data)
+    success, data = tbl.select()
+    assert success
+    assert sorted([r['MYNUMBER'] for r in data]) == [1, 2, 3, 4]
+
+    update_data = [{'MyID':r['MYID'], 'MyNumber':r['MYID']+10} for r in data]
+    tbl.update.with_list_of_dicts('MyID', update_data)
+    success, data = tbl.select()
+    assert success
+    assert sorted([r['MYNUMBER'] for r in data]) == [11, 12, 13, 14]
+
+
+    # error states:
+    update_data = [{'MyNumber':r['MYID']+20} for r in data] # no PK
+    success, result = tbl.update.with_list_of_dicts('MyID', update_data)
+    assert not success 
+    assert result['rows'] == 4
+    assert result['errors'] == 4
+    assert result['successes'] == 0
+
+    update_data = [{'MyID':r['MYID']} for r in data] # only PK
+    success, result = tbl.update.with_list_of_dicts('MyID', update_data)
+    assert not success 
+    assert result['rows'] == 4
+    assert result['errors'] == 4
+    assert result['successes'] == 0
+
+    update_data = [{'MyID':r['MYID'], 'MyNumber':r['MYID']*11} for r in data] # missing record
+    update_data.append({'MyID':5, 'MyNumber':55})
+    success, result = tbl.update.with_list_of_dicts('MyID', update_data)
+    assert not success 
+    assert result['rows'] == 5
+    assert result['errors'] == 1
+    assert result['successes'] == 4
+
+    update_data = [{'MyID':r['MYID'], 'MyNumber':r['MYID']*11} for r in data] # missing record
+    update_data.append({'MyID':5, 'MyNumber':55})
+    success, result = tbl.update.with_list_of_dicts('MyID', update_data, upsert = True)
+    assert success 
+    assert result['rows'] == 5
+    assert result['errors'] == 0
+    assert result['successes'] == 5
+
+    success, results = tbl.delete(where = 'MyID in(1,3,5)')
+    assert success
+    assert results == [{'UPDATED': 3}]
+
+    success, results = tbl.delete(where = 'MyID = 12345')
+    assert success
+    assert results == [{'UPDATED': 0}]
+
+    if tbl.exists:  
+        success, result = tbl.drop()
+        assert success
+
+    pass
 
 if __name__ == '__main__':
-    
-    test_resource_methods()
+    test_inserts_deletes_updates()
     pass 

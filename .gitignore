@@ -9,6 +9,7 @@ skip/
 old/
 tests/tables
 tests/views
+tests/scratchpad*
 projects/
 logs/
 build_biscuit-python/
@@ -17,6 +18,7 @@ publish.sh
 backup*
 latest_test_log.txt
 venv_*
+
 
 # C extensions
 *.so

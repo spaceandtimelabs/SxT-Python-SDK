@@ -457,7 +457,7 @@ class SXTBaseAPI():
         headers = { 'originApp': app_name } if app_name else {}
         sql_text = self.prep_sql(sql_text=sql_text)
         biscuit_tokens = self.prep_biscuits(biscuits)
-        if biscuit_tokens==[]:  raise SxTArgumentError("sql_all requires parameter 'biscuits' to be a single or list of string biscuit_tokens or SXTBiscuit objects.", logger = self.logger)
+        if biscuit_tokens==[]:  raise SxTArgumentError("sql_ddl requires 'biscuits', none were provided.", logger = self.logger)
         dataparms = {"sqlText": sql_text
                     ,"biscuits": biscuit_tokens }
                     # ,"resources": [r for r in resources] }
