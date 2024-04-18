@@ -421,7 +421,7 @@ class SXTResource():
             raise SxTArgumentError('Must create or set a keypair before trying to create the table.  Try running new_keypair().', logger=self.logger)
         if not biscuits: biscuits = self.biscuits if type(self.biscuits)==list else [self.biscuits]
         if biscuits == []: 
-            self.logger.warning('No biscuits found. While this may be OK, it can also cause errors.', logger=self.logger)
+            self.logger.warning('No biscuits found. While this may be OK, it can also cause errors.')
         success, results = user.base_api.sql_ddl(sql_text=sql_text.strip(), biscuits=biscuits, app_name=self.application_name)
         if success: 
             self.logger.info(f'{self.resource_type.name} Created: {self.resource_name}:\n{sql_text}')
@@ -725,6 +725,7 @@ class SXTTable(SXTResource):
         self.__allprops__.insert(2, 'access_type')
         self.__with__=  {"public_key":"{public_key}", "access_type":"{access_type}"}
         self.insert = self.__ins__(self)
+        self.update = self.__upd__(self)
         self.__existfunc__ = self.user.base_api.discovery_get_tables
         
     @property
@@ -820,7 +821,8 @@ class SXTTable(SXTResource):
             log = True if 'log' not in kwargs else bool(kwargs['log'])
             user = self.__rc__.get_first_valid_user(user)
             if not biscuits: biscuits = list(self.__rc__.biscuits) 
-            if biscuits == []:  raise SxTArgumentError('A biscuit with INSERT permissions must be included.', logger=self.__rc__.logger)
+            # not true, if table is public_append or public_write
+            # if biscuits == []:  raise SxTArgumentError('A biscuit with INSERT permissions must be included.', logger=self.__rc__.logger)
             
             if log: self.__rc__.logger.info(f'Inserting SQL:\n{sql_text}\n')
             success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.__rc__.application_name, resources=[self.__rc__.table_name])
@@ -832,7 +834,7 @@ class SXTTable(SXTResource):
 
         def with_list_of_dicts(self, list_of_dicts:list = [{}], biscuits:list = None, user:SXTUser = None, **kwargs) -> (bool, dict):
             """--------------------
-            Turns a list of dictionaries into multiple INSERT statements and submits for insertion to this resource on the Space and Time Network..
+            Turns a list of dictionaries into multiple INSERT statements and submits for insertion to this resource on the Space and Time Network.
 
             Each row (dictionary) in the list will be inserted individually, thus can contain a different assortment of columns
             and data to insert.  This is intended for light-weight inserts of a few thousand rows.  For large-data inserts of streaming 
@@ -879,6 +881,126 @@ class SXTTable(SXTResource):
             if not err==0: self.__rc__.__lasterr__ = self.__rc__.SXTExceptions.SxTQueryError(err_rtn)
             return err==0, {'rows': good+err, 'successes':good, 'errors':err, 'error_list':err_rtn }
 
+
+    class __upd__():
+        def __init__(self, resource:SXTResource) -> None:
+            self.__rc__ = resource
+            self.__ins__ = self.__rc__.__ins__(resource)
+
+        def with_sqltext(self, sql_text:str, biscuits:list = None, user:SXTUser = None, **kwargs) -> (bool, dict):
+            """--------------------
+            Submits a single UPDATE statement to the Space and Time network.  Note, while using the table Primary Key 
+            is recommended, it is not required.
+
+            Args:
+                sql_text (str): UPDATE statement to submit to the SxT Network.
+                biscuits (list): List of biscuits to authorize the request. Defaults to all biscuits added to the object.
+                user (SXTUser): User who will execute the request. Defaults to the default user.
+
+            Returns: 
+                bool: Success flag, True if the data was fully updated, False if any of the records failed.
+                object: Row output of the SQL request, in JSON format, or if error, details returned from the request.
+            """
+            log = True if 'log' not in kwargs else bool(kwargs['log'])
+            user = self.__rc__.get_first_valid_user(user)
+            if not biscuits: biscuits = list(self.__rc__.biscuits) 
+            
+            if log: self.__rc__.logger.info(f'Updating SQL:\n{sql_text}\n')
+            sql_text = self.__rc__.replace_all(sql_text, {'table_name':self.__rc__.resource_name, 'resource_name':self.__rc__.resource_name} )
+            success, response = user.base_api.sql_dml(sql_text=sql_text, biscuits=biscuits, app_name=self.__rc__.application_name, resources=[self.__rc__.table_name])
+            if log and success:     self.__rc__.logger.info(   f'    Success: {response}')
+            if log and not success: self.__rc__.logger.warning(f'    Failure: {response}')
+            if not success: self.__rc__.__lasterr__ = self.__rc__.SXTExceptions.SxTQueryError(response)
+            return success, response
+        
+
+        def with_list_of_dicts(self, pk_column:str, list_of_dicts:list = [{}], upsert:bool = False, biscuits:list = None, user:SXTUser = None, **kwargs) -> (bool, dict):
+            """--------------------
+            Turns a list of dictionaries into multiple UPDATE statements and submits for insertion to this resource on the Space and Time Network.
+
+            Each row (dictionary) in the list will be coverted to an update statement individually, thus can contain a different 
+            assortment of columns and data to update. Rows updated this way are always identified by the unique Primary Key, 
+            so the pk_column must be specified, must match the PK column name in the table definition, and must appear in every 
+            row in the list_of_dicts.  To perform arbitrary UPDATES against multiple rows, us the "with_sqltext()" function.
+            This is intended for light-weight use of a few thousand rows.  For large-data processing of streaming data, check out
+            Space and Time's Kafka streaming service at  https://docs.spaceandtime.io/reference  under Kafka.
+
+            Args:
+                pk_column (str): Column name for the unique primary key (PK) of the table.
+                list_of_dicts (str): List of dictionaries, each representing a row of name/value pairs to insert.
+                upsert (bool): If true, will insert any missing records instead of warning.
+                biscuits (list): List of biscuits to authorize the request. Defaults to all biscuits added to the object.
+                user (SXTUser): User who will execute the request. Defaults to the default user.
+
+            Returns: 
+                bool: Success flag, True if the data was fully inserted, False if any of the records failed.
+                dict: Summary of the insert process, including an error log with any failed insert SQL and individual errors.
+            """
+            err_rtn = []
+            inserts = []
+            good = err = 0
+            row_count = len(list_of_dicts)
+            self.__rc__.logger.info(f'UPDATING {row_count} rows into {self.__rc__.resource_name}...')
+
+            for row in list_of_dicts:
+                early_error = False
+                insert_row = False
+                cols = [v.lower() for v in row.keys()]
+
+                if pk_column.lower() not in cols: # PK not in column list
+                    early_error = True
+                    result = f'Row {good+err+1} - Primary Key (PK) column not found in row.'
+                elif len(cols) < 2: # ONLY PK in column list (nothing to update)
+                    early_error = True
+                    result = f'Row {good+err+1} - No update-able data found.'
+
+                # build update statement
+                sql_text = ''
+                if not early_error:
+                    data = [f" {n} = {self.__rc__.safe_column_value(v)}" for n,v in row.items() if n.lower() != pk_column.lower() ]
+                    update_where = f'{pk_column} = {self.__rc__.safe_column_value( row[pk_column] )}'
+                    update_set = ' ' + '\n,'.join(data)
+                    sql_text = f"UPDATE {self.__rc__.resource_name} SET \n{update_set}\nWHERE {update_where}"
+                
+                tries = 0
+                success = False
+                while success == False:
+                    if early_error: break
+                    if tries >3: break
+                    success, result = self.with_sqltext(sql_text=sql_text, biscuits=biscuits, user=user, log=False)
+                    if not success: 
+                        time.sleep(2)
+                    tries +=1
+
+                # add to upsert if flagged, and record didn't exist
+                if success and len(result) > 0 and result[0] == {'UPDATED': 0}:
+                    if upsert: 
+                        inserts.append(row)
+                        insert_row = True
+                    else:
+                        result = f'Row {good+err+1} - Primary Key (PK) not found in table: {update_where}'
+                        success = False
+
+                if not insert_row:
+                    if success: 
+                        good +=1
+                    else: 
+                        err +=1
+                        self.__rc__.logger.warning(f'    Error during update: {sql_text[:sql_text.find("SET")-1]}...')
+                        err_rtn.append((result, sql_text))
+                
+                    self.__rc__.logger.info(f'    {self.__rc__.resource_name} Updated Row {good+err} of {row_count} ({(good+err)/row_count:.0%}) - Successes: {good}  Erred: {err}')
+
+            if upsert:  # send missing rows to insert
+                success, results = self.__rc__.insert.with_list_of_dicts(list_of_dicts = inserts, biscuits = biscuits, user = user, **kwargs)
+                good += results['successes'] 
+                err += results['errors']
+                err_rtn.extend( results['error_list'] )
+
+            self.__rc__.logger.info(f'UPDATE {self.__rc__.resource_name} complete - Total Rows: {good+err},  Successes: {good},  Erred: {err}')
+            if not err==0: self.__rc__.__lasterr__ = self.__rc__.SXTExceptions.SxTQueryError(err_rtn)
+            return err==0, {'rows': good+err, 'successes':good, 'errors':err, 'error_list':err_rtn }
+        
 
     def delete(self, sql_text:str = None, where:str = '0=1', user:SXTUser = None, biscuits:list = None) -> (bool, dict):
         """--------------------
