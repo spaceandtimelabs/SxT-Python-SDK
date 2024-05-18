@@ -45,7 +45,7 @@ class SXTBiscuit():
         if biscuit_token: 
             self.__manualtoken = True 
             self.__bt = biscuit_token
-            self.logger.warning('manual biscuit token accepted as-is, not calculated or verified.')
+            self.logger.info('manual biscuit token accepted as-is, not calculated or verified.')
             
 
     def __str__(self):
