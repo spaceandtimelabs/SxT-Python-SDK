@@ -13,6 +13,29 @@ from spaceandtime.sxtbiscuits import SXTBiscuit
 API_URL = 'https://api.spaceandtime.app'
 
 
+def test_resource_save_load_bug():
+    sxt = SpaceAndTime()
+    sxt.authenticate()
+
+    tbl = SXTTable('SXTTemp.test_save_load', private_key=os.getenv('RESOURCE_PRIVATE_KEY'), SpaceAndTime_parent=sxt)
+    tbl.add_biscuit('admin', sxt.GRANT.ALL)
+    tbl.create_ddl = """
+    CREATE TABLE {table_name} 
+    ( MyID         int
+    , MyName       varchar
+    , MyNumber     int
+    , Primary Key  (MyID) 
+    ) {with_statement} 
+    """
+    assert tbl.save() # saved correctly?
+    tbl2 = SXTTable(from_file = tbl.recommended_filename)
+    assert tbl2.private_key == tbl.private_key
+    assert tbl2.create_ddl == tbl.create_ddl
+    assert tbl2.table_name == tbl.table_name
+
+
+
+
 def test_resource_methods():
     keys = SXTKeyManager(new_keypair=True)
     rs = SXTResource('Test')
@@ -41,9 +64,7 @@ def test_inserts_deletes_updates():
     sxt = SpaceAndTime()
     sxt.authenticate()
 
-    assert load_dotenv('./tests/.env')
-
-    tbl = SXTTable('SXTTemp.Test_DML', SpaceAndTime_parent=sxt)
+    tbl = SXTTable(name='SXTTemp.Test_DML', from_file='./.env', SpaceAndTime_parent=sxt)
     tbl.create_ddl = """
     CREATE TABLE {table_name} 
     ( MyID         int
@@ -52,7 +73,6 @@ def test_inserts_deletes_updates():
     , Primary Key  (MyID) 
     ) {with_statement} 
     """
-    tbl.private_key = os.getenv('SXTTEMP_PRIVATE_KEY')
     tbl.add_biscuit('admin',sxt.GRANT.ALL)
     if not tbl.exists: 
         tbl.create()

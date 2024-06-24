@@ -1,4 +1,3 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,10 +13,10 @@ projects/
 logs/
 build_biscuit-python/
 publish.sh
-.env_crm
-backup*
-latest_test_log.txt
+.env_*
 venv_*
+tests/backup_biscuits/
+tests/latest_test_log.txt
 
 
 # C extensions
