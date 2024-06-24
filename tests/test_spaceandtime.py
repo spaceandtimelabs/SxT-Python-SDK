@@ -1,5 +1,4 @@
 import os, sys, pytest, pandas, random
-from dotenv import load_dotenv
 from pathlib import Path
 
 # load local copy of libraries
@@ -9,8 +8,6 @@ from spaceandtime.spaceandtime import SXTUser
 from spaceandtime.sxtkeymanager import SXTKeyManager
 from spaceandtime.sxtbiscuits import SXTBiscuit
 from spaceandtime.sxtexceptions import *  # only contains exceptions prefixed with "SXT"
-API_URL = 'https://api.spaceandtime.app'
-
 API_URL = 'https://api.spaceandtime.app'
 
 
@@ -58,10 +55,10 @@ def test_sxt_wrapper():
 
     # pick up specific .env file, with USERID="sxtlabs.crm.etl"
     # note, that specific user must exist for this test to succeed.
-    sxt = SpaceAndTime(envfile_filepath='./.env_crm') 
-    assert sxt.user.user_id == 'sxtlabs.crm.etl'
-    assert sxt.user.public_key == "iGuRWoH7SMKrvDArfRAoWadMNIPCgJpzgkuK0mM1cFU="
-    assert sxt.user.private_key[:6] == 'KMua+5'
+    sxt = SpaceAndTime(envfile_filepath='./.env_alt') 
+    assert sxt.user.user_id == 'pySDK_tester2'
+    assert sxt.user.public_key == "Lu8fefHsAYxKfj7oaCx+Rtz7eNiPln6xbOxJJo0aIZQ="
+    assert sxt.user.private_key[:6] == 'MeaW6J'
 
     assert len(sxt.access_token) == 0
     sxt.authenticate()
@@ -233,9 +230,5 @@ def test_discovery():
 
 
 if __name__ == '__main__':
-    test_sxt_exceptions()
-    test_execute_query()
-    test_access_token_created()
-    test_execute_query()
-    test_discovery()
+    test_sxt_wrapper()
     pass 

@@ -552,15 +552,13 @@ class SXTResource():
         # just in case, try to catch other past docstring markers
         for trymarkers in [docstring_marker_override, 'EOM', 'EOMsg', None, docstring_marker_override]:
             loadmap = pySteve.envfile_load(load_path=Path(filepath).resolve(), exact_match_only=exact_match_only, docstring_marker_override=trymarkers)
-            missed_docstrmarkers = [v for n,v in loadmap.items() if v.strip().startswith('$(cat <<') and len(v)<=32]
+            missed_docstrmarkers = [v for n,v in loadmap.items() if str(v).strip().startswith('$(cat <<') and len(v)<=32]
             if missed_docstrmarkers==[]: break 
         loadmap = {k.lower():loadmap[k] for k in sorted(list(loadmap.keys()))} # sorted to prevent create_ddl / _template overwriting)
 
         try:    
             for name, value in loadmap.items():
-                if name == 'start_time':
-                    setattr(self, name, datetime.strptime(value, '%Y-%m-%d %H:%M:%S') )
-                elif name == 'resource_type': continue
+                if name in ('resource_type','start_time','date','time'): continue
                 elif name == 'resource_private_key':
                     self.key_manager = SXTKeyManager(private_key=value, encoding=SXTKeyEncodings.BASE64, logger=self.logger)
                 elif name == 'access_type':
